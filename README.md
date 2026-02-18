@@ -1,8 +1,6 @@
 <div align="center">
-  <img src="https://github.com/hydropix/TranslateBooksWithLLMs/blob/main/src/web/static/TBL-Logo-alpha.png?raw=true" height="40">
   <h1>Translate Books with LLMs</h1>
 </div>
-
 
 Translate **books**, **subtitles**, and **documents** using AI - locally or in the cloud.
 
@@ -13,6 +11,8 @@ Translate **books**, **subtitles**, and **documents** using AI - locally or in t
 **Resume anytime.** Interrupted translation? Pick up exactly where you left off. The checkpoint system saves progress automatically.
 
 Formats: **EPUB**, **SRT**, **DOCX**, **TXT**
+
+<img width="1240" height="1945" alt="image" src="https://github.com/user-attachments/assets/7b9769df-6833-410d-ae38-a5894ca415dd" />
 
 Providers:
 
