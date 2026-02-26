@@ -379,12 +379,10 @@ async function initializeModules() {
     initializeState();
     WebSocketManager.connect();
 
-    // 2. UI modules - IMPORTANT: FormManager must initialize BEFORE SettingsManager
-    // This ensures server config (including DEFAULT_TARGET_LANGUAGE) is loaded first
-    // and won't be overridden by localStorage preferences
+    // 2. UI modules
     initializeThemeManager();
-    await FormManager.initialize();  // Fix #108: await server config loading
     SettingsManager.initialize();
+    FormManager.initialize();
     StatusManager.initialize();
     initializePreviewHeight(); // Load and apply preview height
 

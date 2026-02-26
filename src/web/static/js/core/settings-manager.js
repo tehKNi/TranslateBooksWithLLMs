@@ -288,20 +288,11 @@ export const SettingsManager = {
             window.__pendingModelSelection = prefs.lastModel;
         }
 
-        // Apply last languages - but only if not already set by server config
-        // This prevents localStorage from overriding DEFAULT_TARGET_LANGUAGE from .env
-        // See: https://github.com/hydropix/TranslateBooksWithLLMs/issues/108
-        // 
-        // Check if server config was loaded and has a default target language
-        const serverConfig = StateManager.getState('ui.defaultConfig');
-        const hasServerDefaultTargetLang = serverConfig && serverConfig.default_target_language && 
-                                           serverConfig.default_target_language.trim() !== '';
-        
+        // Apply last languages
         if (prefs.lastSourceLanguage) {
             this._setLanguage('sourceLang', 'customSourceLang', prefs.lastSourceLanguage);
         }
-        // Only restore target language from localStorage if server didn't set a default
-        if (prefs.lastTargetLanguage && !hasServerDefaultTargetLang) {
+        if (prefs.lastTargetLanguage) {
             this._setLanguage('targetLang', 'customTargetLang', prefs.lastTargetLanguage);
         }
 

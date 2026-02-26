@@ -62,9 +62,9 @@ export const FormManager = {
     /**
      * Initialize form manager
      */
-    async initialize() {
+    initialize() {
         this.setupEventListeners();
-        await this.loadDefaultConfig();  // Fix #108: await server config before continuing
+        this.loadDefaultConfig();
         this.loadCustomInstructions();
     },
 
@@ -383,12 +383,13 @@ export const FormManager = {
         try {
             const config = await ApiClient.getConfig();
 
-            // Set target language from server config if available, otherwise detect from browser
+            // Set target language from server config if available
             // This fixes GitHub issue #108: DEFAULT_TARGET_LANGUAGE was ignored
-            const targetLanguage = config.default_target_language && config.default_target_language.trim()
-                ? config.default_target_language
-                : this.detectBrowserLanguage();
-            setDefaultLanguage('targetLang', 'customTargetLang', targetLanguage);
+            // Only override if server has a default target language configured
+            if (config.default_target_language && config.default_target_language.trim()) {
+                setDefaultLanguage('targetLang', 'customTargetLang', config.default_target_language);
+            }
+            // If no server default, keep the value from SettingsManager (localStorage) or browser default
 
             // Set source language from server config if available
             const sourceLanguage = config.default_source_language && config.default_source_language.trim()
