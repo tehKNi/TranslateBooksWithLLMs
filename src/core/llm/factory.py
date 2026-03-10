@@ -11,9 +11,9 @@ from typing import Optional
 from src.config import (
     API_ENDPOINT, DEFAULT_MODEL, OLLAMA_NUM_CTX,
     OPENROUTER_API_KEY, OPENROUTER_MODEL,
-    MISTRAL_API_KEY, MISTRAL_MODEL,
-    DEEPSEEK_API_KEY, DEEPSEEK_MODEL,
-    POE_API_KEY, POE_MODEL
+    MISTRAL_API_KEY, MISTRAL_MODEL, MISTRAL_API_ENDPOINT,
+    DEEPSEEK_API_KEY, DEEPSEEK_MODEL, DEEPSEEK_API_ENDPOINT,
+    POE_API_KEY, POE_MODEL, POE_API_ENDPOINT
 )
 from .base import LLMProvider
 from .providers.ollama import OllamaProvider
@@ -113,7 +113,7 @@ def create_llm_provider(provider_type: str = "ollama", **kwargs) -> LLMProvider:
         return MistralProvider(
             api_key=api_key,
             model=kwargs.get("model", MISTRAL_MODEL),
-            api_endpoint=kwargs.get("api_endpoint") or kwargs.get("endpoint")
+            api_endpoint=MISTRAL_API_ENDPOINT
         )
     elif provider_type.lower() == "deepseek":
         api_key = kwargs.get("api_key") or kwargs.get("deepseek_api_key")
@@ -125,7 +125,7 @@ def create_llm_provider(provider_type: str = "ollama", **kwargs) -> LLMProvider:
         return DeepSeekProvider(
             api_key=api_key,
             model=kwargs.get("model", DEEPSEEK_MODEL),
-            api_endpoint=kwargs.get("api_endpoint") or kwargs.get("endpoint")
+            api_endpoint=DEEPSEEK_API_ENDPOINT
         )
     elif provider_type.lower() == "poe":
         api_key = kwargs.get("api_key") or kwargs.get("poe_api_key")
@@ -137,7 +137,7 @@ def create_llm_provider(provider_type: str = "ollama", **kwargs) -> LLMProvider:
         return PoeProvider(
             api_key=api_key,
             model=kwargs.get("model", POE_MODEL),
-            api_endpoint=kwargs.get("api_endpoint") or kwargs.get("endpoint")
+            api_endpoint=POE_API_ENDPOINT
         )
     else:
         raise ValueError(f"Unknown provider type: {provider_type}")
