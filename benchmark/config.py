@@ -2,7 +2,7 @@
 Benchmark configuration module.
 
 Defines configuration settings for the benchmark system including:
-- Ollama settings for translation
+- Ollama/OpenAI-compatible settings for translation
 - OpenRouter settings for evaluation
 - File paths and defaults
 """
@@ -100,6 +100,30 @@ class OpenRouterConfig:
 
 
 @dataclass
+class OpenAICompatibleConfig:
+    """Configuration for OpenAI-compatible translation provider."""
+
+    api_key: Optional[str] = field(
+        default_factory=lambda: os.getenv("OPENAI_API_KEY")
+    )
+    endpoint: str = field(
+        default_factory=lambda: os.getenv(
+            "OPENAI_API_ENDPOINT",
+            "https://api.openai.com/v1/chat/completions"
+        )
+    )
+    default_model: str = field(
+        default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    )
+    context_window: int = field(
+        default_factory=lambda: int(os.getenv("OPENAI_NUM_CTX", os.getenv("OLLAMA_NUM_CTX", "2048")))
+    )
+    timeout: int = field(
+        default_factory=lambda: int(os.getenv("OPENAI_REQUEST_TIMEOUT", os.getenv("REQUEST_TIMEOUT", "900")))
+    )
+
+
+@dataclass
 class PoeConfig:
     """Configuration for Poe evaluation provider."""
 
@@ -155,6 +179,7 @@ class BenchmarkConfig:
     """Main benchmark configuration aggregating all sub-configs."""
 
     ollama: OllamaConfig = field(default_factory=OllamaConfig)
+    openai: OpenAICompatibleConfig = field(default_factory=OpenAICompatibleConfig)
     openrouter: OpenRouterConfig = field(default_factory=OpenRouterConfig)
     poe: PoeConfig = field(default_factory=PoeConfig)
     paths: PathConfig = field(default_factory=PathConfig)
@@ -163,7 +188,7 @@ class BenchmarkConfig:
     source_language: str = "English"
     quick_languages: list = field(default_factory=lambda: DEFAULT_QUICK_LANGUAGES.copy())
 
-    # Translation provider ("ollama" or "openrouter")
+    # Translation provider ("ollama", "openai", or "openrouter")
     translation_provider: str = "ollama"
 
     # Evaluator provider ("openrouter" or "poe")
@@ -182,6 +207,8 @@ class BenchmarkConfig:
     def from_cli_args(
         cls,
         openrouter_key: Optional[str] = None,
+        openai_key: Optional[str] = None,
+        openai_endpoint: Optional[str] = None,
         evaluator_model: Optional[str] = None,
         ollama_endpoint: Optional[str] = None,
         translation_provider: Optional[str] = None,
@@ -195,6 +222,9 @@ class BenchmarkConfig:
         if openrouter_key:
             config.openrouter.api_key = openrouter_key
 
+        if openai_key:
+            config.openai.api_key = openai_key
+
         if poe_key:
             config.poe.api_key = poe_key
 
@@ -204,6 +234,9 @@ class BenchmarkConfig:
 
         if ollama_endpoint:
             config.ollama.endpoint = ollama_endpoint
+
+        if openai_endpoint:
+            config.openai.endpoint = openai_endpoint
 
         if translation_provider:
             config.translation_provider = translation_provider.lower()
@@ -245,6 +278,12 @@ class BenchmarkConfig:
                 "Set OPENROUTER_API_KEY in .env or use --openrouter-key"
             )
 
+        if self.translation_provider == "openai" and not self.openai.endpoint:
+            errors.append(
+                "OpenAI-compatible endpoint not configured. Required for translation. "
+                "Set OPENAI_API_ENDPOINT in .env or use --openai-endpoint"
+            )
+
         if not self.paths.languages_file.exists():
             errors.append(f"Languages file not found: {self.paths.languages_file}")
 
@@ -252,10 +291,10 @@ class BenchmarkConfig:
             errors.append(f"Reference texts file not found: {self.paths.reference_texts_file}")
 
         # Validate translation provider
-        if self.translation_provider not in ("ollama", "openrouter"):
+        if self.translation_provider not in ("ollama", "openai", "openrouter"):
             errors.append(
                 f"Invalid translation provider: {self.translation_provider}. "
-                "Must be 'ollama' or 'openrouter'"
+                "Must be 'ollama', 'openai', or 'openrouter'"
             )
 
         return errors
