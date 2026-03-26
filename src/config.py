@@ -1,6 +1,7 @@
 """
 Centralized configuration class
 """
+
 import os
 import sys
 import logging
@@ -10,12 +11,15 @@ from typing import Optional
 from dotenv import load_dotenv
 
 # Setup debug logger for configuration
-_config_logger = logging.getLogger('config')
+_config_logger = logging.getLogger("config")
 
 # Check for DEBUG_MODE early (before .env is loaded, check environment)
-_debug_mode = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
+_debug_mode = os.getenv("DEBUG_MODE", "false").lower() == "true"
 if _debug_mode:
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
     _config_logger.setLevel(logging.DEBUG)
     _config_logger.debug("🔍 DEBUG_MODE enabled - verbose logging active")
 
@@ -23,8 +27,8 @@ if _debug_mode:
 _config_dir = Path.cwd()
 
 # Check if .env file exists and provide helpful guidance
-_env_file = _config_dir / '.env'
-_env_example = _config_dir / '.env.example'
+_env_file = _config_dir / ".env"
+_env_example = _config_dir / ".env.example"
 _env_exists = _env_file.exists()
 _cwd = Path.cwd()
 
@@ -35,13 +39,13 @@ if _debug_mode:
 
 if not _env_exists:
     # Check if running as PyInstaller executable
-    _is_frozen = getattr(sys, 'frozen', False)
+    _is_frozen = getattr(sys, "frozen", False)
 
     if not _is_frozen:
         # Only show the interactive prompt when NOT running as executable
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("⚠️  WARNING: .env configuration file not found")
-        print("="*70)
+        print("=" * 70)
         print("\nThe application will run with default settings, but you may need to")
         print("configure it for your specific setup.\n")
 
@@ -63,16 +67,19 @@ if not _env_exists:
         print(f"   • Port: 5000")
         print(f"\n💡 TIP: If using a remote server or different provider, you MUST")
         print(f"   create a .env file with the correct settings.\n")
-        print("="*70)
+        print("=" * 70)
         print("Press Ctrl+C to stop and configure, or wait 5 seconds to continue...")
-        print("="*70 + "\n")
+        print("=" * 70 + "\n")
 
         # Give user time to read and react
         import time
+
         try:
             time.sleep(5)
         except KeyboardInterrupt:
-            print("\n\n⏹️  Startup cancelled by user. Please configure .env and try again.\n")
+            print(
+                "\n\n⏹️  Startup cancelled by user. Please configure .env and try again.\n"
+            )
             sys.exit(0)
     else:
         # Running as executable - silently use defaults
@@ -87,15 +94,19 @@ if _debug_mode:
 
 # Load from environment variables with defaults
 # Ollama endpoint configuration (provider-specific)
-OLLAMA_API_ENDPOINT = os.getenv('OLLAMA_API_ENDPOINT', 'http://localhost:11434/api/generate')
+OLLAMA_API_ENDPOINT = os.getenv(
+    "OLLAMA_API_ENDPOINT", "http://localhost:11434/api/generate"
+)
 # OpenAI-compatible endpoint configuration (for OpenAI, LM Studio, etc.)
-OPENAI_API_ENDPOINT = os.getenv('OPENAI_API_ENDPOINT', 'https://api.openai.com/v1/chat/completions')
+OPENAI_API_ENDPOINT = os.getenv(
+    "OPENAI_API_ENDPOINT", "https://api.openai.com/v1/chat/completions"
+)
 # Legacy API_ENDPOINT for backward compatibility (defaults to Ollama endpoint)
-API_ENDPOINT = os.getenv('API_ENDPOINT', OLLAMA_API_ENDPOINT)
-DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'qwen3:14b')
-PORT = int(os.getenv('PORT', '5000'))
-REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', '900'))
-OLLAMA_NUM_CTX = int(os.getenv('OLLAMA_NUM_CTX', '4096'))
+API_ENDPOINT = os.getenv("API_ENDPOINT", OLLAMA_API_ENDPOINT)
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "qwen3:14b")
+PORT = int(os.getenv("PORT", "5000"))
+REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "900"))
+OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
 
 # =============================================================================
 # THINKING MODEL CONFIGURATION
@@ -111,44 +122,60 @@ OLLAMA_NUM_CTX = int(os.getenv('OLLAMA_NUM_CTX', '4096'))
 # Models that CANNOT be prevented from thinking - show WARNING to user
 # These models either ignore think=false or don't support the param but still think
 UNCONTROLLABLE_THINKING_MODELS = [
-    "qwen3:30b",      # Qwen3 30B ignores think=false (tested)
-    "qwen3-vl",       # Qwen3 Vision models ignore think=false
-    "phi4-reasoning", # Phi4 reasoning doesn't support think param but always thinks
-    "deepseek-r1",    # DeepSeek R1 reasoning model
-    "qwq",            # Qwen QwQ reasoning model
-    "marco-o1",       # Alibaba reasoning model
-    "exaone-deep",    # LG reasoning model
+    "qwen3:30b",  # Qwen3 30B ignores think=false (tested)
+    "qwen3-vl",  # Qwen3 Vision models ignore think=false
+    "phi4-reasoning",  # Phi4 reasoning doesn't support think param but always thinks
+    "deepseek-r1",  # DeepSeek R1 reasoning model
+    "qwq",  # Qwen QwQ reasoning model
+    "marco-o1",  # Alibaba reasoning model
+    "exaone-deep",  # LG reasoning model
 ]
 
 # Models that respect think=false - controllable, no warning needed
 CONTROLLABLE_THINKING_MODELS = [
-    "qwen3:8b",       # Respects think=false (tested)
-    "qwen3:14b",      # Respects think=false (tested)
-    "qwen3:4b",       # Smaller Qwen3 models likely controllable
-    "qwen3:1.7b",     # Smaller Qwen3 models likely controllable
-    "qwen3:0.6b",     # Smaller Qwen3 models likely controllable
-    "qwen3.5:9b",     # Qwen3.5 tested
-    "qwen3.5:35b",    # Qwen3.5 large - controllable
+    "qwen3:8b",  # Respects think=false (tested)
+    "qwen3:14b",  # Respects think=false (tested)
+    "qwen3:4b",  # Smaller Qwen3 models likely controllable
+    "qwen3:1.7b",  # Smaller Qwen3 models likely controllable
+    "qwen3:0.6b",  # Smaller Qwen3 models likely controllable
+    "qwen3.5:9b",  # Qwen3.5 tested
+    "qwen3.5:35b",  # Qwen3.5 large - controllable
 ]
 
 # Legacy alias for backward compatibility
 THINKING_MODELS = UNCONTROLLABLE_THINKING_MODELS + CONTROLLABLE_THINKING_MODELS
-MAX_TRANSLATION_ATTEMPTS = int(os.getenv('MAX_TRANSLATION_ATTEMPTS', '2'))
+MAX_TRANSLATION_ATTEMPTS = int(os.getenv("MAX_TRANSLATION_ATTEMPTS", "2"))
 
 # Adaptive context optimization settings
 # The new strategy starts at a small context and grows as needed based on actual token usage
 AUTO_ADJUST_CONTEXT = os.getenv("AUTO_ADJUST_CONTEXT", "true").lower() == "true"
-ADAPTIVE_CONTEXT_INITIAL = int(os.getenv("ADAPTIVE_CONTEXT_INITIAL", "2048"))  # Starting context size
-ADAPTIVE_CONTEXT_INITIAL_THINKING = int(os.getenv("ADAPTIVE_CONTEXT_INITIAL_THINKING", "6144"))  # Starting context for thinking models (need more space for reasoning)
-ADAPTIVE_CONTEXT_STEP = int(os.getenv("ADAPTIVE_CONTEXT_STEP", "2048"))  # Step size for increases
-ADAPTIVE_CONTEXT_STABILITY_WINDOW = int(os.getenv("ADAPTIVE_CONTEXT_STABILITY_WINDOW", "5"))  # Chunks to track before reducing
+ADAPTIVE_CONTEXT_INITIAL = int(
+    os.getenv("ADAPTIVE_CONTEXT_INITIAL", "2048")
+)  # Starting context size
+ADAPTIVE_CONTEXT_INITIAL_THINKING = int(
+    os.getenv("ADAPTIVE_CONTEXT_INITIAL_THINKING", "6144")
+)  # Starting context for thinking models (need more space for reasoning)
+ADAPTIVE_CONTEXT_STEP = int(
+    os.getenv("ADAPTIVE_CONTEXT_STEP", "2048")
+)  # Step size for increases
+ADAPTIVE_CONTEXT_STABILITY_WINDOW = int(
+    os.getenv("ADAPTIVE_CONTEXT_STABILITY_WINDOW", "5")
+)  # Chunks to track before reducing
 
 # Repetition loop detection settings
 # Thinking models may have natural repetitions in their reasoning, so we use higher thresholds
-REPETITION_MIN_PHRASE_LENGTH = int(os.getenv("REPETITION_MIN_PHRASE_LENGTH", "5"))  # Min phrase length to detect
-REPETITION_MIN_COUNT = int(os.getenv("REPETITION_MIN_COUNT", "10"))  # Min repetitions for standard models
-REPETITION_MIN_COUNT_THINKING = int(os.getenv("REPETITION_MIN_COUNT_THINKING", "15"))  # Min repetitions for thinking models (more lenient)
-REPETITION_MIN_COUNT_STREAMING = int(os.getenv("REPETITION_MIN_COUNT_STREAMING", "12"))  # Min repetitions during streaming (early detection)
+REPETITION_MIN_PHRASE_LENGTH = int(
+    os.getenv("REPETITION_MIN_PHRASE_LENGTH", "5")
+)  # Min phrase length to detect
+REPETITION_MIN_COUNT = int(
+    os.getenv("REPETITION_MIN_COUNT", "10")
+)  # Min repetitions for standard models
+REPETITION_MIN_COUNT_THINKING = int(
+    os.getenv("REPETITION_MIN_COUNT_THINKING", "15")
+)  # Min repetitions for thinking models (more lenient)
+REPETITION_MIN_COUNT_STREAMING = int(
+    os.getenv("REPETITION_MIN_COUNT_STREAMING", "12")
+)  # Min repetitions during streaming (early detection)
 
 # Legacy settings (kept for compatibility)
 MIN_RECOMMENDED_NUM_CTX = 4096  # Minimum recommended context for chunk_size=25
@@ -158,8 +185,8 @@ MAX_CHUNK_SIZE = int(os.getenv("MAX_CHUNK_SIZE", "100"))
 
 # Token-based chunking configuration
 # All file types use token-based chunking with tiktoken for consistent chunk sizes
-MAX_TOKENS_PER_CHUNK = int(os.getenv('MAX_TOKENS_PER_CHUNK', '450'))
-SOFT_LIMIT_RATIO = float(os.getenv('SOFT_LIMIT_RATIO', '0.8'))
+MAX_TOKENS_PER_CHUNK = int(os.getenv("MAX_TOKENS_PER_CHUNK", "450"))
+SOFT_LIMIT_RATIO = float(os.getenv("SOFT_LIMIT_RATIO", "0.8"))
 
 # === Translation Buffer Configuration ===
 TRANSLATION_OUTPUT_MULTIPLIER = 2
@@ -181,40 +208,58 @@ MIN_CHUNK_SIZE_TOKENS = 50
 """Taille minimale d'un chunk pour éviter la sur-fragmentation"""
 
 # LLM Provider configuration
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama', 'gemini', 'openai', 'openrouter', 'mistral', 'deepseek', or 'poe'
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
-GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+LLM_PROVIDER = os.getenv(
+    "LLM_PROVIDER", "ollama"
+)  # 'ollama', 'gemini', 'openai', 'openrouter', 'mistral', 'deepseek', 'poe', or 'nim'
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # OpenRouter configuration (access to 200+ models)
-OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '')
-OPENROUTER_MODEL = os.getenv('OPENROUTER_MODEL', 'anthropic/claude-sonnet-4')
-OPENROUTER_API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "anthropic/claude-sonnet-4")
+OPENROUTER_API_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 
 # Mistral AI configuration
-MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY', '')
-MISTRAL_MODEL = os.getenv('MISTRAL_MODEL', 'mistral-large-latest')
-MISTRAL_API_ENDPOINT = os.getenv('MISTRAL_API_ENDPOINT', 'https://api.mistral.ai/v1/chat/completions')
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
+MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-large-latest")
+MISTRAL_API_ENDPOINT = os.getenv(
+    "MISTRAL_API_ENDPOINT", "https://api.mistral.ai/v1/chat/completions"
+)
 
 # DeepSeek configuration (Chinese LLM, very cost-effective)
-DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
-DEEPSEEK_MODEL = os.getenv('DEEPSEEK_MODEL', 'deepseek-chat')
-DEEPSEEK_API_ENDPOINT = os.getenv('DEEPSEEK_API_ENDPOINT', 'https://api.deepseek.com/chat/completions')
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+DEEPSEEK_API_ENDPOINT = os.getenv(
+    "DEEPSEEK_API_ENDPOINT", "https://api.deepseek.com/chat/completions"
+)
 
 # Poe configuration (access to Claude, GPT, Gemini, Llama, Grok via single API)
-POE_API_KEY = os.getenv('POE_API_KEY', '')
-POE_MODEL = os.getenv('POE_MODEL', 'Claude-Sonnet-4')
-POE_API_ENDPOINT = os.getenv('POE_API_ENDPOINT', 'https://api.poe.com/v1/chat/completions')
+POE_API_KEY = os.getenv("POE_API_KEY", "")
+POE_MODEL = os.getenv("POE_MODEL", "Claude-Sonnet-4")
+POE_API_ENDPOINT = os.getenv(
+    "POE_API_ENDPOINT", "https://api.poe.com/v1/chat/completions"
+)
+
+# NVIDIA NIM configuration (hosted cloud API for Llama, Mistral, and other models)
+NIM_API_KEY = os.getenv("NIM_API_KEY", "")
+NIM_MODEL = os.getenv("NIM_MODEL", "meta/llama-3.1-8b-instruct")
+NIM_API_ENDPOINT = os.getenv(
+    "NIM_API_ENDPOINT", "https://integrate.api.nvidia.com/v1/chat/completions"
+)
 
 # SRT-specific configuration
-SRT_LINES_PER_BLOCK = int(os.getenv('SRT_LINES_PER_BLOCK', '5'))
-SRT_MAX_CHARS_PER_BLOCK = int(os.getenv('SRT_MAX_CHARS_PER_BLOCK', '500'))
+SRT_LINES_PER_BLOCK = int(os.getenv("SRT_LINES_PER_BLOCK", "5"))
+SRT_MAX_CHARS_PER_BLOCK = int(os.getenv("SRT_MAX_CHARS_PER_BLOCK", "500"))
 
 # Translation Attribution
 # This adds a discrete attribution to your translations (metadata for EPUB, footer for TXT, comment for SRT)
 # Please consider keeping this enabled to support the project and help others discover this free tool!
 # The attribution is non-intrusive and placed at the end of files. Thank you for your support!
-ATTRIBUTION_ENABLED = os.getenv('ATTRIBUTION_ENABLED', os.getenv('SIGNATURE_ENABLED', 'true')).lower() == 'true'
+ATTRIBUTION_ENABLED = (
+    os.getenv("ATTRIBUTION_ENABLED", os.getenv("SIGNATURE_ENABLED", "true")).lower()
+    == "true"
+)
 GENERATOR_NAME = "TranslateBook with LLM (TBL)"
 GENERATOR_SOURCE = "https://github.com/hydropix/TranslateBookWithLLM"
 METADATA_VERSION = "1.0"
@@ -222,8 +267,12 @@ METADATA_VERSION = "1.0"
 # Default languages from environment (optional)
 # Source language: Auto-detected from file content (langdetect)
 # Target language: Auto-detected from browser language in UI
-DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', '')  # Empty = auto-detect
-DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', '')  # Empty = use browser language
+DEFAULT_SOURCE_LANGUAGE = os.getenv(
+    "DEFAULT_SOURCE_LANGUAGE", ""
+)  # Empty = auto-detect
+DEFAULT_TARGET_LANGUAGE = os.getenv(
+    "DEFAULT_TARGET_LANGUAGE", ""
+)  # Empty = use browser language
 
 # ============================================================================
 # PROMPT OPTIONS CONFIGURATION
@@ -237,22 +286,24 @@ DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', '')  # Empty = us
 PROMPT_PRESERVE_TECHNICAL_CONTENT = True
 
 # Server configuration
-HOST = os.getenv('HOST', '127.0.0.1')
-OUTPUT_DIR = os.getenv('OUTPUT_DIR', 'translated_files')
+HOST = os.getenv("HOST", "127.0.0.1")
+OUTPUT_DIR = os.getenv("OUTPUT_DIR", "translated_files")
 
 # Output filename pattern
 # Use {originalName}, {targetLang}, {sourceLang}, {model}, {ext} as placeholders
-OUTPUT_FILENAME_PATTERN = os.getenv('OUTPUT_FILENAME_PATTERN', '{originalName} ({targetLang}).{ext}')
+OUTPUT_FILENAME_PATTERN = os.getenv(
+    "OUTPUT_FILENAME_PATTERN", "{originalName} ({targetLang}).{ext}"
+)
 
 # Debug mode (reload after .env is loaded)
-DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
+DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
 
 # Log loaded configuration in debug mode
 if DEBUG_MODE or _debug_mode:
     _config_logger.setLevel(logging.DEBUG)
-    _config_logger.debug("="*60)
+    _config_logger.debug("=" * 60)
     _config_logger.debug("📋 LOADED CONFIGURATION VALUES:")
-    _config_logger.debug("="*60)
+    _config_logger.debug("=" * 60)
     _config_logger.debug(f"   API_ENDPOINT: {API_ENDPOINT}")
     _config_logger.debug(f"   DEFAULT_MODEL: {DEFAULT_MODEL}")
     _config_logger.debug(f"   LLM_PROVIDER: {LLM_PROVIDER}")
@@ -262,17 +313,33 @@ if DEBUG_MODE or _debug_mode:
     _config_logger.debug(f"   DEFAULT_TARGET_LANGUAGE: {DEFAULT_TARGET_LANGUAGE}")
     _config_logger.debug(f"   OLLAMA_NUM_CTX: {OLLAMA_NUM_CTX}")
     _config_logger.debug(f"   REQUEST_TIMEOUT: {REQUEST_TIMEOUT}")
-    _config_logger.debug(f"   GEMINI_API_KEY: {'***' + GEMINI_API_KEY[-4:] if GEMINI_API_KEY else '(not set)'}")
-    _config_logger.debug(f"   OPENAI_API_KEY: {'***' + OPENAI_API_KEY[-4:] if OPENAI_API_KEY else '(not set)'}")
-    _config_logger.debug(f"   OPENROUTER_API_KEY: {'***' + OPENROUTER_API_KEY[-4:] if OPENROUTER_API_KEY else '(not set)'}")
+    _config_logger.debug(
+        f"   GEMINI_API_KEY: {'***' + GEMINI_API_KEY[-4:] if GEMINI_API_KEY else '(not set)'}"
+    )
+    _config_logger.debug(
+        f"   OPENAI_API_KEY: {'***' + OPENAI_API_KEY[-4:] if OPENAI_API_KEY else '(not set)'}"
+    )
+    _config_logger.debug(
+        f"   OPENROUTER_API_KEY: {'***' + OPENROUTER_API_KEY[-4:] if OPENROUTER_API_KEY else '(not set)'}"
+    )
     _config_logger.debug(f"   OPENROUTER_MODEL: {OPENROUTER_MODEL}")
-    _config_logger.debug(f"   MISTRAL_API_KEY: {'***' + MISTRAL_API_KEY[-4:] if MISTRAL_API_KEY else '(not set)'}")
+    _config_logger.debug(
+        f"   MISTRAL_API_KEY: {'***' + MISTRAL_API_KEY[-4:] if MISTRAL_API_KEY else '(not set)'}"
+    )
     _config_logger.debug(f"   MISTRAL_MODEL: {MISTRAL_MODEL}")
-    _config_logger.debug(f"   DEEPSEEK_API_KEY: {'***' + DEEPSEEK_API_KEY[-4:] if DEEPSEEK_API_KEY else '(not set)'}")
+    _config_logger.debug(
+        f"   DEEPSEEK_API_KEY: {'***' + DEEPSEEK_API_KEY[-4:] if DEEPSEEK_API_KEY else '(not set)'}"
+    )
     _config_logger.debug(f"   DEEPSEEK_MODEL: {DEEPSEEK_MODEL}")
-    _config_logger.debug(f"   POE_API_KEY: {'***' + POE_API_KEY[-4:] if POE_API_KEY else '(not set)'}")
+    _config_logger.debug(
+        f"   POE_API_KEY: {'***' + POE_API_KEY[-4:] if POE_API_KEY else '(not set)'}"
+    )
     _config_logger.debug(f"   POE_MODEL: {POE_MODEL}")
-    _config_logger.debug("="*60)
+    _config_logger.debug(
+        f"   NIM_API_KEY: {'***' + NIM_API_KEY[-4:] if NIM_API_KEY else '(not set)'}"
+    )
+    _config_logger.debug(f"   NIM_MODEL: {NIM_MODEL}")
+    _config_logger.debug("=" * 60)
 
 # Translation tags - Improved for LLM clarity and reliability
 TRANSLATE_TAG_IN = "<TRANSLATION>"
@@ -299,7 +366,7 @@ PLACEHOLDER_PREFIX = "[id"
 PLACEHOLDER_SUFFIX = "]"
 """Suffix for tag placeholders (e.g., ] in [id0])"""
 
-PLACEHOLDER_PATTERN = r'\[id(\d+)\]'
+PLACEHOLDER_PATTERN = r"\[id(\d+)\]"
 """Regex pattern for placeholders (e.g., [id0])"""
 
 # Maximum retries for placeholder validation before falling back to source text
@@ -315,10 +382,12 @@ MAX_PLACEHOLDER_CORRECTION_ATTEMPTS = 0
 # When LLM fails to preserve placeholders correctly, use word-level alignment
 # to reinsert them at semantically correct positions.
 
-EPUB_TOKEN_ALIGNMENT_ENABLED = os.getenv('EPUB_TOKEN_ALIGNMENT_ENABLED', 'true').lower() == 'true'
+EPUB_TOKEN_ALIGNMENT_ENABLED = (
+    os.getenv("EPUB_TOKEN_ALIGNMENT_ENABLED", "true").lower() == "true"
+)
 """Enable token alignment fallback for EPUB translation (Phase 2)"""
 
-EPUB_TOKEN_ALIGNMENT_METHOD = os.getenv('EPUB_TOKEN_ALIGNMENT_METHOD', 'proportional')
+EPUB_TOKEN_ALIGNMENT_METHOD = os.getenv("EPUB_TOKEN_ALIGNMENT_METHOD", "proportional")
 """
 Alignment method to use:
 - 'proportional': Simple position-based alignment (fast, no dependencies)
@@ -386,32 +455,41 @@ def detect_format_from_placeholder(sample_placeholder: str) -> str:
 
 
 # Sentence terminators
-SENTENCE_TERMINATORS = tuple(list(".!?") + ['."', '?"', '!"', '."', ".'", "?'", "!'", ":", ".)"])
+SENTENCE_TERMINATORS = tuple(
+    list(".!?") + ['."', '?"', '!"', '."', ".'", "?'", "!'", ":", ".)"]
+)
 
 # EPUB-specific configuration
 NAMESPACES = {
-    'opf': 'http://www.idpf.org/2007/opf',
-    'dc': 'http://purl.org/dc/elements/1.1/',
-    'xhtml': 'http://www.w3.org/1999/xhtml',
-    'epub': 'http://www.idpf.org/2007/ops'
+    "opf": "http://www.idpf.org/2007/opf",
+    "dc": "http://purl.org/dc/elements/1.1/",
+    "xhtml": "http://www.w3.org/1999/xhtml",
+    "epub": "http://www.idpf.org/2007/ops",
 }
 
 IGNORED_TAGS_EPUB = [
-    '{http://www.w3.org/1999/xhtml}script',
-    '{http://www.w3.org/1999/xhtml}style',
-    '{http://www.w3.org/1999/xhtml}meta',
-    '{http://www.w3.org/1999/xhtml}link'
+    "{http://www.w3.org/1999/xhtml}script",
+    "{http://www.w3.org/1999/xhtml}style",
+    "{http://www.w3.org/1999/xhtml}meta",
+    "{http://www.w3.org/1999/xhtml}link",
 ]
 
 CONTENT_BLOCK_TAGS_EPUB = [
-    '{http://www.w3.org/1999/xhtml}p', '{http://www.w3.org/1999/xhtml}div',
-    '{http://www.w3.org/1999/xhtml}li', '{http://www.w3.org/1999/xhtml}h1',
-    '{http://www.w3.org/1999/xhtml}h2', '{http://www.w3.org/1999/xhtml}h3',
-    '{http://www.w3.org/1999/xhtml}h4', '{http://www.w3.org/1999/xhtml}h5',
-    '{http://www.w3.org/1999/xhtml}h6', '{http://www.w3.org/1999/xhtml}blockquote',
-    '{http://www.w3.org/1999/xhtml}td', '{http://www.w3.org/1999/xhtml}th',
-    '{http://www.w3.org/1999/xhtml}caption',
-    '{http://www.w3.org/1999/xhtml}dt', '{http://www.w3.org/1999/xhtml}dd'
+    "{http://www.w3.org/1999/xhtml}p",
+    "{http://www.w3.org/1999/xhtml}div",
+    "{http://www.w3.org/1999/xhtml}li",
+    "{http://www.w3.org/1999/xhtml}h1",
+    "{http://www.w3.org/1999/xhtml}h2",
+    "{http://www.w3.org/1999/xhtml}h3",
+    "{http://www.w3.org/1999/xhtml}h4",
+    "{http://www.w3.org/1999/xhtml}h5",
+    "{http://www.w3.org/1999/xhtml}h6",
+    "{http://www.w3.org/1999/xhtml}blockquote",
+    "{http://www.w3.org/1999/xhtml}td",
+    "{http://www.w3.org/1999/xhtml}th",
+    "{http://www.w3.org/1999/xhtml}caption",
+    "{http://www.w3.org/1999/xhtml}dt",
+    "{http://www.w3.org/1999/xhtml}dd",
 ]
 
 # Model family context size defaults (shared across providers)
@@ -434,13 +512,13 @@ DEFAULT_CONTEXT_FALLBACK = 2048
 @dataclass
 class TranslationConfig:
     """Unified configuration for both CLI and web interfaces"""
-    
+
     # Core settings
     source_language: str = DEFAULT_SOURCE_LANGUAGE
     target_language: str = DEFAULT_TARGET_LANGUAGE
     model: str = DEFAULT_MODEL
     api_endpoint: str = API_ENDPOINT
-    
+
     # LLM Provider settings
     llm_provider: str = LLM_PROVIDER
     gemini_api_key: str = GEMINI_API_KEY
@@ -449,6 +527,7 @@ class TranslationConfig:
     mistral_api_key: str = MISTRAL_API_KEY
     deepseek_api_key: str = DEEPSEEK_API_KEY
     poe_api_key: str = POE_API_KEY
+    nim_api_key: str = NIM_API_KEY
 
     # LLM parameters
     timeout: int = REQUEST_TIMEOUT
@@ -471,7 +550,7 @@ class TranslationConfig:
     enable_interruption: bool = False
 
     @classmethod
-    def from_cli_args(cls, args) -> 'TranslationConfig':
+    def from_cli_args(cls, args) -> "TranslationConfig":
         """Create config from CLI arguments"""
         return cls(
             source_language=args.source_lang,
@@ -480,65 +559,80 @@ class TranslationConfig:
             api_endpoint=args.api_endpoint,
             interface_type="cli",
             enable_colors=not args.no_color,
-            llm_provider=getattr(args, 'provider', LLM_PROVIDER),
-            gemini_api_key=getattr(args, 'gemini_api_key', GEMINI_API_KEY),
-            openai_api_key=getattr(args, 'openai_api_key', OPENAI_API_KEY),
-            openrouter_api_key=getattr(args, 'openrouter_api_key', OPENROUTER_API_KEY),
-            mistral_api_key=getattr(args, 'mistral_api_key', MISTRAL_API_KEY),
-            deepseek_api_key=getattr(args, 'deepseek_api_key', DEEPSEEK_API_KEY),
-            poe_api_key=getattr(args, 'poe_api_key', POE_API_KEY),
-            max_tokens_per_chunk=getattr(args, 'max_tokens_per_chunk', MAX_TOKENS_PER_CHUNK),
-            soft_limit_ratio=getattr(args, 'soft_limit_ratio', SOFT_LIMIT_RATIO)
+            llm_provider=getattr(args, "provider", LLM_PROVIDER),
+            gemini_api_key=getattr(args, "gemini_api_key", GEMINI_API_KEY),
+            openai_api_key=getattr(args, "openai_api_key", OPENAI_API_KEY),
+            openrouter_api_key=getattr(args, "openrouter_api_key", OPENROUTER_API_KEY),
+            mistral_api_key=getattr(args, "mistral_api_key", MISTRAL_API_KEY),
+            deepseek_api_key=getattr(args, "deepseek_api_key", DEEPSEEK_API_KEY),
+            poe_api_key=getattr(args, "poe_api_key", POE_API_KEY),
+            nim_api_key=getattr(args, "nim_api_key", NIM_API_KEY),
+            max_tokens_per_chunk=getattr(
+                args, "max_tokens_per_chunk", MAX_TOKENS_PER_CHUNK
+            ),
+            soft_limit_ratio=getattr(args, "soft_limit_ratio", SOFT_LIMIT_RATIO),
         )
 
     @classmethod
-    def from_web_request(cls, request_data: dict) -> 'TranslationConfig':
+    def from_web_request(cls, request_data: dict) -> "TranslationConfig":
         """Create config from web request data"""
         return cls(
-            source_language=request_data.get('source_language', DEFAULT_SOURCE_LANGUAGE),
-            target_language=request_data.get('target_language', DEFAULT_TARGET_LANGUAGE),
-            model=request_data.get('model', DEFAULT_MODEL),
-            api_endpoint=request_data.get('llm_api_endpoint', API_ENDPOINT),
-            timeout=request_data.get('timeout', REQUEST_TIMEOUT),
-            max_attempts=request_data.get('max_attempts', MAX_TRANSLATION_ATTEMPTS),
-            retry_delay=request_data.get('retry_delay', 2),
-            context_window=request_data.get('context_window', OLLAMA_NUM_CTX),
-            auto_adjust_context=request_data.get('auto_adjust_context', AUTO_ADJUST_CONTEXT),
-            min_chunk_size=request_data.get('min_chunk_size', MIN_CHUNK_SIZE),
-            max_chunk_size=request_data.get('max_chunk_size', MAX_CHUNK_SIZE),
+            source_language=request_data.get(
+                "source_language", DEFAULT_SOURCE_LANGUAGE
+            ),
+            target_language=request_data.get(
+                "target_language", DEFAULT_TARGET_LANGUAGE
+            ),
+            model=request_data.get("model", DEFAULT_MODEL),
+            api_endpoint=request_data.get("llm_api_endpoint", API_ENDPOINT),
+            timeout=request_data.get("timeout", REQUEST_TIMEOUT),
+            max_attempts=request_data.get("max_attempts", MAX_TRANSLATION_ATTEMPTS),
+            retry_delay=request_data.get("retry_delay", 2),
+            context_window=request_data.get("context_window", OLLAMA_NUM_CTX),
+            auto_adjust_context=request_data.get(
+                "auto_adjust_context", AUTO_ADJUST_CONTEXT
+            ),
+            min_chunk_size=request_data.get("min_chunk_size", MIN_CHUNK_SIZE),
+            max_chunk_size=request_data.get("max_chunk_size", MAX_CHUNK_SIZE),
             interface_type="web",
             enable_interruption=True,
-            llm_provider=request_data.get('llm_provider', LLM_PROVIDER),
-            gemini_api_key=request_data.get('gemini_api_key', GEMINI_API_KEY),
-            openai_api_key=request_data.get('openai_api_key', OPENAI_API_KEY),
-            openrouter_api_key=request_data.get('openrouter_api_key', OPENROUTER_API_KEY),
-            mistral_api_key=request_data.get('mistral_api_key', MISTRAL_API_KEY),
-            deepseek_api_key=request_data.get('deepseek_api_key', DEEPSEEK_API_KEY),
-            poe_api_key=request_data.get('poe_api_key', POE_API_KEY),
-            max_tokens_per_chunk=request_data.get('max_tokens_per_chunk', MAX_TOKENS_PER_CHUNK),
-            soft_limit_ratio=request_data.get('soft_limit_ratio', SOFT_LIMIT_RATIO)
+            llm_provider=request_data.get("llm_provider", LLM_PROVIDER),
+            gemini_api_key=request_data.get("gemini_api_key", GEMINI_API_KEY),
+            openai_api_key=request_data.get("openai_api_key", OPENAI_API_KEY),
+            openrouter_api_key=request_data.get(
+                "openrouter_api_key", OPENROUTER_API_KEY
+            ),
+            mistral_api_key=request_data.get("mistral_api_key", MISTRAL_API_KEY),
+            deepseek_api_key=request_data.get("deepseek_api_key", DEEPSEEK_API_KEY),
+            poe_api_key=request_data.get("poe_api_key", POE_API_KEY),
+            nim_api_key=request_data.get("nim_api_key", NIM_API_KEY),
+            max_tokens_per_chunk=request_data.get(
+                "max_tokens_per_chunk", MAX_TOKENS_PER_CHUNK
+            ),
+            soft_limit_ratio=request_data.get("soft_limit_ratio", SOFT_LIMIT_RATIO),
         )
 
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization"""
         return {
-            'source_language': self.source_language,
-            'target_language': self.target_language,
-            'model': self.model,
-            'api_endpoint': self.api_endpoint,
-            'timeout': self.timeout,
-            'max_attempts': self.max_attempts,
-            'retry_delay': self.retry_delay,
-            'context_window': self.context_window,
-            'llm_provider': self.llm_provider,
-            'gemini_api_key': self.gemini_api_key,
-            'openai_api_key': self.openai_api_key,
-            'openrouter_api_key': self.openrouter_api_key,
-            'mistral_api_key': self.mistral_api_key,
-            'deepseek_api_key': self.deepseek_api_key,
-            'poe_api_key': self.poe_api_key,
-            'max_tokens_per_chunk': self.max_tokens_per_chunk,
-            'soft_limit_ratio': self.soft_limit_ratio
+            "source_language": self.source_language,
+            "target_language": self.target_language,
+            "model": self.model,
+            "api_endpoint": self.api_endpoint,
+            "timeout": self.timeout,
+            "max_attempts": self.max_attempts,
+            "retry_delay": self.retry_delay,
+            "context_window": self.context_window,
+            "llm_provider": self.llm_provider,
+            "gemini_api_key": self.gemini_api_key,
+            "openai_api_key": self.openai_api_key,
+            "openrouter_api_key": self.openrouter_api_key,
+            "mistral_api_key": self.mistral_api_key,
+            "deepseek_api_key": self.deepseek_api_key,
+            "poe_api_key": self.poe_api_key,
+            "nim_api_key": self.nim_api_key,
+            "max_tokens_per_chunk": self.max_tokens_per_chunk,
+            "soft_limit_ratio": self.soft_limit_ratio,
         }
 
 

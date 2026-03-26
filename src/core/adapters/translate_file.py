@@ -42,12 +42,13 @@ async def translate_file(
     mistral_api_key: Optional[str] = None,
     deepseek_api_key: Optional[str] = None,
     poe_api_key: Optional[str] = None,
+    nim_api_key: Optional[str] = None,
     context_window: Optional[int] = None,
     auto_adjust_context: bool = True,
     min_chunk_size: int = 5,
     prompt_options: Optional[Dict[str, Any]] = None,
     bilingual_output: bool = False,
-    **additional_config
+    **additional_config,
 ) -> bool:
     """
     Translate a file using the adapter pattern.
@@ -77,6 +78,7 @@ async def translate_file(
         mistral_api_key: Mistral API key (required for mistral provider)
         deepseek_api_key: DeepSeek API key (required for deepseek provider)
         poe_api_key: Poe API key (required for poe provider)
+        nim_api_key: NVIDIA NIM API key (required for nim provider)
         context_window: Maximum context window size in tokens
         auto_adjust_context: Whether to automatically adjust context size
         min_chunk_size: Minimum chunk size for text splitting
@@ -128,16 +130,19 @@ async def translate_file(
             )
 
     # Log detected type if different from extension
-    if log_callback and detected_type != ext.lstrip('.'):
-        log_callback("file_type_detected",
-            f"📄 File with extension '{ext}' detected as '{detected_type.upper()}' format")
+    if log_callback and detected_type != ext.lstrip("."):
+        log_callback(
+            "file_type_detected",
+            f"📄 File with extension '{ext}' detected as '{detected_type.upper()}' format",
+        )
 
     # TEMPORARY WORKAROUND: For EPUB files, use the legacy translate_epub_file() directly
     # The generic adapter pattern doesn't work well with EPUB's complex XHTML processing
     # that requires HTML chunking, tag preservation, technical content protection, etc.
     # TODO: Refactor EPUB translation to properly work with the adapter pattern
-    if detected_type == 'epub':
+    if detected_type == "epub":
         from src.core.epub.translator import translate_epub_file
+
         await translate_epub_file(
             input_filepath=input_filepath,
             output_filepath=output_filepath,
@@ -155,6 +160,7 @@ async def translate_file(
             mistral_api_key=mistral_api_key,
             deepseek_api_key=deepseek_api_key,
             poe_api_key=poe_api_key,
+            nim_api_key=nim_api_key,
             context_window=context_window or 2048,
             auto_adjust_context=auto_adjust_context,
             min_chunk_size=min_chunk_size,
@@ -163,14 +169,14 @@ async def translate_file(
             resume_from_index=resume_from_index,
             prompt_options=prompt_options,
             bilingual=bilingual_output,
-            **additional_config
+            **additional_config,
         )
         return True  # Legacy function doesn't return success status
 
     # DOCX translation using EPUB pipeline (Phase 1 implementation)
     # Similar to EPUB, DOCX requires HTML chunking, tag preservation, etc.
     # This reuses the EPUB pipeline for rapid deployment
-    if detected_type == 'docx':
+    if detected_type == "docx":
         from src.core.docx.translator import translate_docx_file
         from src.core.llm import create_llm_provider
 
@@ -184,7 +190,8 @@ async def translate_file(
             openrouter_api_key=openrouter_api_key,
             mistral_api_key=mistral_api_key,
             deepseek_api_key=deepseek_api_key,
-            poe_api_key=poe_api_key
+            poe_api_key=poe_api_key,
+            nim_api_key=nim_api_key,
         )
 
         result = await translate_docx_file(
@@ -202,58 +209,58 @@ async def translate_file(
             context_manager=None,
             check_interruption_callback=check_interruption_callback,
             checkpoint_manager=checkpoint_manager,
-            translation_id=translation_id
+            translation_id=translation_id,
         )
-        return result.get('success', False)
+        return result.get("success", False)
 
     # Map detected file types to adapters
     adapter_map = {
-        'txt': TxtAdapter,
-        'srt': SrtAdapter,
+        "txt": TxtAdapter,
+        "srt": SrtAdapter,
         # Note: 'epub' uses legacy path above
         # Note: 'docx' uses legacy path above
     }
 
     adapter_class = adapter_map.get(detected_type)
     if not adapter_class:
-        supported = ', '.join(['txt', 'srt', 'epub', 'docx'])
+        supported = ", ".join(["txt", "srt", "epub", "docx"])
         raise UnsupportedFormatError(
             f"Unsupported file format: {detected_type}. Supported formats: {supported}"
         )
 
     # Prepare adapter configuration (format-specific settings)
     adapter_config = {
-        'context_window': context_window,
-        'auto_adjust_context': auto_adjust_context,
-        'min_chunk_size': min_chunk_size,
-        'prompt_options': prompt_options,
-        **additional_config
+        "context_window": context_window,
+        "auto_adjust_context": auto_adjust_context,
+        "min_chunk_size": min_chunk_size,
+        "prompt_options": prompt_options,
+        **additional_config,
     }
 
     # Create adapter instance
     adapter = adapter_class(
         input_file_path=input_filepath,
         output_file_path=output_filepath,
-        config=adapter_config
+        config=adapter_config,
     )
 
     # Create generic translator
     translator = GenericTranslator(
         adapter=adapter,
         checkpoint_manager=checkpoint_manager,
-        translation_id=translation_id
+        translation_id=translation_id,
     )
 
     # Prepare LLM configuration (provider-specific settings)
     llm_config = {
-        'endpoint': llm_api_endpoint,
-        'gemini_api_key': gemini_api_key,
-        'openai_api_key': openai_api_key,
-        'openrouter_api_key': openrouter_api_key,
-        'mistral_api_key': mistral_api_key,
-        'deepseek_api_key': deepseek_api_key,
-        'poe_api_key': poe_api_key,
-        'prompt_options': prompt_options,
+        "endpoint": llm_api_endpoint,
+        "gemini_api_key": gemini_api_key,
+        "openai_api_key": openai_api_key,
+        "openrouter_api_key": openrouter_api_key,
+        "mistral_api_key": mistral_api_key,
+        "deepseek_api_key": deepseek_api_key,
+        "poe_api_key": poe_api_key,
+        "prompt_options": prompt_options,
     }
 
     # Execute translation
@@ -266,7 +273,7 @@ async def translate_file(
         stats_callback=stats_callback,
         check_interruption_callback=check_interruption_callback,
         bilingual_output=bilingual_output,
-        **llm_config
+        **llm_config,
     )
 
 
@@ -283,19 +290,17 @@ def get_file_type_from_path(filepath: str) -> str:
     _, ext = os.path.splitext(filepath.lower())
 
     type_map = {
-        '.txt': 'txt',
-        '.srt': 'srt',
-        '.epub': 'epub',
-        '.docx': 'docx',
+        ".txt": "txt",
+        ".srt": "srt",
+        ".epub": "epub",
+        ".docx": "docx",
     }
 
-    return type_map.get(ext, 'unknown')
+    return type_map.get(ext, "unknown")
 
 
 async def build_translated_output(
-    translation_id: str,
-    checkpoint_manager: Any,
-    **adapter_config
+    translation_id: str, checkpoint_manager: Any, **adapter_config
 ) -> tuple[Optional[bytes], Optional[str]]:
     """
     Rebuild the translated output file from a checkpoint.
@@ -331,14 +336,14 @@ async def build_translated_output(
     if not job:
         return None, "Job not found"
 
-    config = job['config']
-    file_type = job['file_type']
+    config = job["config"]
+    file_type = job["file_type"]
 
     # Map file types to adapters
     adapter_map = {
-        'txt': TxtAdapter,
-        'srt': SrtAdapter,
-        'epub': EpubAdapter,
+        "txt": TxtAdapter,
+        "srt": SrtAdapter,
+        "epub": EpubAdapter,
         # Note: docx doesn't support checkpoint reconstruction yet
     }
 
@@ -347,8 +352,10 @@ async def build_translated_output(
         return None, f"Unsupported file type: {file_type}"
 
     # Get file paths from config
-    input_file_path = config.get('preserved_input_path') or config.get('input_file_path')
-    output_file_path = config.get('output_file_path')
+    input_file_path = config.get("preserved_input_path") or config.get(
+        "input_file_path"
+    )
+    output_file_path = config.get("output_file_path")
 
     if not input_file_path or not output_file_path:
         return None, "Missing file paths in checkpoint configuration"
@@ -358,7 +365,7 @@ async def build_translated_output(
         adapter = adapter_class(
             input_file_path=input_file_path,
             output_file_path=output_file_path,
-            config={**config, **adapter_config}
+            config={**config, **adapter_config},
         )
 
         # Prepare adapter
