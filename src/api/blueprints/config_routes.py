@@ -46,6 +46,7 @@ from src.config import (
     DEEPSEEK_MODEL,
     POE_API_KEY,
     NIM_API_KEY,
+    NIM_API_ENDPOINT,
     NIM_MODEL,
     POE_MODEL,
     MAX_TOKENS_PER_CHUNK,
@@ -420,8 +421,6 @@ def create_config_blueprint(server_session_id=None):
 
     def _get_nim_models(provided_api_key=None):
         """Get available models from NVIDIA NIM API"""
-        from src.config import NIM_API_ENDPOINT
-
         api_key = _resolve_api_key(provided_api_key, 'NIM_API_KEY', NIM_API_KEY)
 
         # Use NIM_MODEL from .env, fallback to meta/llama-3.1-8b-instruct
@@ -450,12 +449,37 @@ def create_config_blueprint(server_session_id=None):
                 models_data = data.get('data', [])
 
                 if models_data:
-                    # Filter and format models
+                    # Keywords indicating non-chat models
+                    non_chat_keywords = [
+                        # Embeddings & retrieval
+                        'embed', 'rerank', 'bge', 'arctic-embed',
+                        # Vision & multimodal
+                        'vision', 'vlm', '-vl-', '-vl', 'clip', 'neva', 'vila', 'fuyu',
+                        'deplot', 'paligemma', 'kosmos', 'multimodal',
+                        'cosmos', 'streampetr',
+                        # Code-specific
+                        'starcoder', 'codellama', 'codegemma', 'usdcode',
+                        'coder', 'codestral', 'code-instruct',
+                        # Safety & moderation
+                        'guard', 'safety', 'shield',
+                        # Audio/speech
+                        'whisper', 'parakeet', 'canary', 'fastpitch',
+                        # Other non-chat
+                        'gliner', 'parse', 'reward', 'mathstral',
+                    ]
+                    # Known base models (not instruct/chat)
+                    base_models = {
+                        'google/gemma-2b', 'google/gemma-7b', 'google/recurrentgemma-2b',
+                        'nvidia/mistral-nemo-minitron-8b-base', 'mistralai/mixtral-8x22b-v0.1',
+                    }
+
                     models = []
                     for m in models_data:
                         model_id = m.get('id', '')
-                        # Skip embedding models and other non-chat models
-                        if 'embedding' in model_id.lower() or 'whisper' in model_id.lower():
+                        model_lower = model_id.lower()
+                        if any(kw in model_lower for kw in non_chat_keywords):
+                            continue
+                        if model_id in base_models:
                             continue
                         models.append({
                             'id': model_id,

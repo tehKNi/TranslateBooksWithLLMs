@@ -64,6 +64,7 @@ function getTranslationConfig(file) {
         mistral_api_key: provider === 'mistral' ? ApiKeyUtils.getValue('mistralApiKey') : '',
         deepseek_api_key: provider === 'deepseek' ? ApiKeyUtils.getValue('deepseekApiKey') : '',
         poe_api_key: provider === 'poe' ? ApiKeyUtils.getValue('poeApiKey') : '',
+        nim_api_key: provider === 'nim' ? ApiKeyUtils.getValue('nimApiKey') : '',
         input_filename: file.name,
         output_filename: file.outputFilename,
         file_type: file.fileType,

@@ -16,7 +16,8 @@ const STATUS_ID_MAP = {
     'openrouterApiKey': 'openrouterKeyStatus',
     'mistralApiKey': 'mistralKeyStatus',
     'deepseekApiKey': 'deepseekKeyStatus',
-    'poeApiKey': 'poeKeyStatus'
+    'poeApiKey': 'poeKeyStatus',
+    'nimApiKey': 'nimKeyStatus'
 };
 
 /**
@@ -28,7 +29,8 @@ const PROVIDER_FIELD_MAP = {
     'openrouter': 'openrouterApiKey',
     'mistral': 'mistralApiKey',
     'deepseek': 'deepseekApiKey',
-    'poe': 'poeApiKey'
+    'poe': 'poeApiKey',
+    'nim': 'nimApiKey'
 };
 
 export const ApiKeyUtils = {
@@ -194,6 +196,10 @@ export const ApiKeyUtils = {
 
         if (provider === 'poe' && !isAvailable) {
             return { valid: false, message: 'Poe API key is required. Get your key at poe.com/api_key' };
+        }
+
+        if (provider === 'nim' && !isAvailable) {
+            return { valid: false, message: 'NVIDIA NIM API key is required when using NIM provider.' };
         }
 
         return { valid: true, message: '' };

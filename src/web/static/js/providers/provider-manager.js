@@ -316,7 +316,7 @@ function populateModelSelect(models, defaultModel = null, provider = 'ollama') {
             }
             modelSelect.appendChild(option);
         });
-    } else if (provider === 'deepseek') {
+    } else if (provider === 'deepseek' || provider === 'nim') {
         models.forEach(model => {
             const option = document.createElement('option');
             option.value = model.value;
@@ -499,10 +499,11 @@ export const ProviderManager = {
         const openaiEndpointRow = DomHelpers.getElement('openaiEndpointRow');
         const openrouterSettings = DomHelpers.getElement('openrouterSettings');
 
-        // Get mistral, deepseek and poe settings elements once
+        // Get mistral, deepseek, poe and nim settings elements once
         const mistralSettings = DomHelpers.getElement('mistralSettings');
         const deepseekSettings = DomHelpers.getElement('deepseekSettings');
         const poeSettings = DomHelpers.getElement('poeSettings');
+        const nimSettings = DomHelpers.getElement('nimSettings');
 
         // Show/hide provider-specific settings (use inline style for elements with inline display:none)
         if (provider === 'ollama') {
@@ -514,6 +515,7 @@ export const ProviderManager = {
             if (mistralSettings) mistralSettings.style.display = 'none';
             if (deepseekSettings) deepseekSettings.style.display = 'none';
             if (poeSettings) poeSettings.style.display = 'none';
+            if (nimSettings) nimSettings.style.display = 'none';
             if (loadModels) this.loadOllamaModels();
         } else if (provider === 'poe') {
             DomHelpers.hide('ollamaSettings');
@@ -524,6 +526,7 @@ export const ProviderManager = {
             if (mistralSettings) mistralSettings.style.display = 'none';
             if (deepseekSettings) deepseekSettings.style.display = 'none';
             if (poeSettings) poeSettings.style.display = 'block';
+            if (nimSettings) nimSettings.style.display = 'none';
             if (loadModels) this.loadPoeModels();
         } else if (provider === 'gemini') {
             DomHelpers.hide('ollamaSettings');
@@ -534,6 +537,7 @@ export const ProviderManager = {
             if (mistralSettings) mistralSettings.style.display = 'none';
             if (deepseekSettings) deepseekSettings.style.display = 'none';
             if (poeSettings) poeSettings.style.display = 'none';
+            if (nimSettings) nimSettings.style.display = 'none';
             if (loadModels) this.loadGeminiModels();
         } else if (provider === 'openai') {
             DomHelpers.hide('ollamaSettings');
@@ -544,6 +548,7 @@ export const ProviderManager = {
             if (mistralSettings) mistralSettings.style.display = 'none';
             if (deepseekSettings) deepseekSettings.style.display = 'none';
             if (poeSettings) poeSettings.style.display = 'none';
+            if (nimSettings) nimSettings.style.display = 'none';
             if (loadModels) this.loadOpenAIModels();
         } else if (provider === 'openrouter') {
             DomHelpers.hide('ollamaSettings');
@@ -554,6 +559,7 @@ export const ProviderManager = {
             if (mistralSettings) mistralSettings.style.display = 'none';
             if (deepseekSettings) deepseekSettings.style.display = 'none';
             if (poeSettings) poeSettings.style.display = 'none';
+            if (nimSettings) nimSettings.style.display = 'none';
             if (loadModels) this.loadOpenRouterModels();
         } else if (provider === 'mistral') {
             DomHelpers.hide('ollamaSettings');
@@ -564,6 +570,7 @@ export const ProviderManager = {
             if (mistralSettings) mistralSettings.style.display = 'block';
             if (deepseekSettings) deepseekSettings.style.display = 'none';
             if (poeSettings) poeSettings.style.display = 'none';
+            if (nimSettings) nimSettings.style.display = 'none';
             if (loadModels) this.loadMistralModels();
         } else if (provider === 'deepseek') {
             DomHelpers.hide('ollamaSettings');
@@ -574,7 +581,19 @@ export const ProviderManager = {
             if (mistralSettings) mistralSettings.style.display = 'none';
             if (deepseekSettings) deepseekSettings.style.display = 'block';
             if (poeSettings) poeSettings.style.display = 'none';
+            if (nimSettings) nimSettings.style.display = 'none';
             if (loadModels) this.loadDeepSeekModels();
+        } else if (provider === 'nim') {
+            DomHelpers.hide('ollamaSettings');
+            if (geminiSettings) geminiSettings.style.display = 'none';
+            if (openaiApiKeyGroup) openaiApiKeyGroup.style.display = 'none';
+            if (openaiEndpointRow) openaiEndpointRow.style.display = 'none';
+            if (openrouterSettings) openrouterSettings.style.display = 'none';
+            if (mistralSettings) mistralSettings.style.display = 'none';
+            if (deepseekSettings) deepseekSettings.style.display = 'none';
+            if (poeSettings) poeSettings.style.display = 'none';
+            if (nimSettings) nimSettings.style.display = 'block';
+            if (loadModels) this.loadNimModels();
         }
     },
 
@@ -598,6 +617,8 @@ export const ProviderManager = {
             this.loadMistralModels();
         } else if (provider === 'deepseek') {
             this.loadDeepSeekModels();
+        } else if (provider === 'nim') {
+            this.loadNimModels();
         }
     },
 
@@ -1017,6 +1038,63 @@ export const ProviderManager = {
 
             StateManager.setState('models.availableModels', DEEPSEEK_FALLBACK_MODELS.map(m => m.value));
             StatusManager.setConnected('deepseek', DEEPSEEK_FALLBACK_MODELS.length);
+        }
+    },
+
+    /**
+     * Load NVIDIA NIM models dynamically from API
+     */
+    async loadNimModels() {
+        const modelSelect = DomHelpers.getElement('model');
+        if (!modelSelect) return;
+
+        modelSelect.innerHTML = '<option value="">Loading NIM models...</option>';
+        StatusManager.setChecking();
+
+        try {
+            const apiKey = ApiKeyUtils.getValue('nimApiKey');
+            if (!apiKey) {
+                MessageLogger.showMessage('NVIDIA NIM API key required', 'warning');
+                modelSelect.innerHTML = '<option value="">Enter API key first</option>';
+                StatusManager.setError('No API key');
+                return;
+            }
+
+            const data = await ApiClient.getModels('nim', { apiKey });
+
+            if (data.models && data.models.length > 0) {
+                MessageLogger.showMessage('', '');
+
+                const formattedModels = data.models.map(m => ({
+                    value: m.id,
+                    label: m.name || m.id,
+                    context_length: m.context_length
+                }));
+
+                populateModelSelect(formattedModels, data.default, 'nim');
+                MessageLogger.addLog(`${data.count} NIM model(s) loaded`);
+
+                SettingsManager.applyPendingModelSelection();
+                ModelDetector.checkAndShowRecommendation();
+
+                StateManager.setState('models.availableModels', formattedModels.map(m => m.value));
+                StatusManager.setConnected('nim', data.count);
+            } else {
+                const errorMessage = data.error || 'Could not load models from NIM API';
+                MessageLogger.showMessage(`${errorMessage}. Using fallback list.`, 'warning');
+                populateModelSelect(NIM_FALLBACK_MODELS, 'meta/llama-3.1-70b-instruct', 'nim');
+                MessageLogger.addLog(`Using fallback NIM models list`);
+
+                StateManager.setState('models.availableModels', NIM_FALLBACK_MODELS.map(m => m.value));
+                StatusManager.setConnected('nim', NIM_FALLBACK_MODELS.length);
+            }
+        } catch (error) {
+            MessageLogger.showMessage(`Error: ${error.message}. Using fallback list.`, 'warning');
+            MessageLogger.addLog(`NIM API error: ${error.message}. Using fallback list.`);
+            populateModelSelect(NIM_FALLBACK_MODELS, 'meta/llama-3.1-70b-instruct', 'nim');
+
+            StateManager.setState('models.availableModels', NIM_FALLBACK_MODELS.map(m => m.value));
+            StatusManager.setConnected('nim', NIM_FALLBACK_MODELS.length);
         }
     },
 

@@ -446,6 +446,7 @@ export const FormManager = {
             ApiKeyUtils.setupField('mistralApiKey', config.mistral_api_key_configured, config.mistral_api_key);
             ApiKeyUtils.setupField('deepseekApiKey', config.deepseek_api_key_configured, config.deepseek_api_key);
             ApiKeyUtils.setupField('poeApiKey', config.poe_api_key_configured, config.poe_api_key);
+            ApiKeyUtils.setupField('nimApiKey', config.nim_api_key_configured, config.nim_api_key);
 
             // After loading defaults, dispatch event to notify other modules
             console.log('[FormManager] Default config loaded, dispatching event');

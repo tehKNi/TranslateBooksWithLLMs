@@ -38,6 +38,10 @@ class OpenAICompatibleProvider(LLMProvider):
         """Check if the endpoint is the official OpenAI API."""
         return "api.openai.com" in self.api_endpoint
 
+    def _is_local_endpoint(self) -> bool:
+        """Check if the endpoint is a local server (llama.cpp, vLLM, LM Studio, etc.)."""
+        return "localhost" in self.api_endpoint or "127.0.0.1" in self.api_endpoint
+
     @staticmethod
     def _normalize_endpoint(endpoint: str) -> str:
         """
@@ -100,8 +104,9 @@ class OpenAICompatibleProvider(LLMProvider):
             "stream": False,
         }
 
-        # Only add thinking-disable params for local/compatible servers, not official OpenAI API
-        if not self._is_official_openai_endpoint():
+        # Only add thinking-disable params for local servers (llama.cpp, vLLM, LM Studio)
+        # Skip for official OpenAI API and cloud providers (NVIDIA NIM, etc.)
+        if not self._is_official_openai_endpoint() and self._is_local_endpoint():
             payload["thinking"] = False
             payload["enable_thinking"] = False
             payload["chat_template_kwargs"] = {"enable_thinking": False}
