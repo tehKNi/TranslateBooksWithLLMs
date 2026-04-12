@@ -245,7 +245,7 @@ HOST = os.getenv('HOST', '127.0.0.1')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', 'translated_files')
 
 # Output filename pattern
-# Use {originalName}, {targetLang}, {sourceLang}, {model}, {ext} as placeholders
+# Placeholders: {originalName}, {targetLang}, {sourceLang}, {model}, {date}, {datetime}, {ext}
 OUTPUT_FILENAME_PATTERN = os.getenv('OUTPUT_FILENAME_PATTERN', '{originalName} ({targetLang}).{ext}')
 
 # Debug mode (reload after .env is loaded)

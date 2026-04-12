@@ -17,34 +17,73 @@ const FILE_QUEUE_STORAGE_KEY = 'tbl_file_queue';
 let lastUploadedFileName = null;
 
 /**
- * Generate output filename based on pattern
- * @param {File} file - Original file
- * @param {string} pattern - Output pattern (e.g., "{originalName} ({targetLang}).{ext}")
+ * Sanitize a value to be safe in a filename across Windows/macOS/Linux.
+ * Strips path separators and reserved chars, collapses whitespace.
+ */
+function sanitizeFilenamePart(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/[\/\\:*?"<>|]+/g, '_')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/**
+ * Resolve a language value from a <select> + custom <input> pair,
+ * falling back to 'Translated' / 'Source' when empty.
+ */
+function resolveLanguageValue(selectId, customId, fallback) {
+    const selectEl = DomHelpers.getElement(selectId);
+    const customEl = DomHelpers.getElement(customId);
+    let value = selectEl?.value || '';
+    if (value === 'Other') {
+        value = customEl?.value?.trim() || '';
+    }
+    return value || fallback;
+}
+
+/**
+ * Generate output filename based on pattern.
+ * Supported placeholders: {originalName}, {targetLang}, {sourceLang}, {model}, {date}, {datetime}, {ext}
+ *
+ * @param {File|{name: string}} file - Original file (only .name is used)
+ * @param {string} pattern - Output pattern
+ * @param {Object} [overrides] - Optional explicit values that win over DOM lookups
+ * @param {string} [overrides.sourceLang]
+ * @param {string} [overrides.targetLang]
+ * @param {string} [overrides.model]
  * @returns {string} Generated filename
  */
-function generateOutputFilename(file, pattern) {
+export function generateOutputFilename(file, pattern, overrides = {}) {
     const fileExtension = file.name.split('.').pop().toLowerCase();
     const originalNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
 
-    // Get target language from the form
-    const targetLangSelect = DomHelpers.getElement('targetLang');
-    const customTargetLang = DomHelpers.getElement('customTargetLang');
-    let targetLang = targetLangSelect?.value || '';
+    const targetLang = overrides.targetLang
+        || resolveLanguageValue('targetLang', 'customTargetLang', 'Translated');
+    const sourceLang = overrides.sourceLang
+        || resolveLanguageValue('sourceLang', 'customSourceLang', 'Source');
+    const model = overrides.model ?? DomHelpers.getValue('model') ?? '';
 
-    // If "Other" is selected, use the custom input value
-    if (targetLang === 'Other') {
-        targetLang = customTargetLang?.value?.trim() || '';
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const datetime = `${date}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+
+    const replacements = {
+        '{originalName}': sanitizeFilenamePart(originalNameWithoutExt),
+        '{targetLang}': sanitizeFilenamePart(targetLang),
+        '{sourceLang}': sanitizeFilenamePart(sourceLang),
+        '{model}': sanitizeFilenamePart(model),
+        '{date}': date,
+        '{datetime}': datetime,
+        '{ext}': fileExtension
+    };
+
+    let result = pattern || '{originalName} ({targetLang}).{ext}';
+    for (const [token, value] of Object.entries(replacements)) {
+        result = result.split(token).join(value);
     }
-
-    // Use "Translated" as fallback if no language specified
-    if (!targetLang) {
-        targetLang = 'Translated';
-    }
-
-    return pattern
-        .replace("{originalName}", originalNameWithoutExt)
-        .replace("{targetLang}", targetLang)
-        .replace("{ext}", fileExtension);
+    return result;
 }
 
 /**

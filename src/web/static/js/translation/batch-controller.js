@@ -13,7 +13,7 @@ import { Validators } from '../utils/validators.js';
 import { ApiKeyUtils } from '../utils/api-key-utils.js';
 import { StatusManager } from '../utils/status-manager.js';
 import { ProgressManager } from './progress-manager.js';
-import { FileUpload } from '../files/file-upload.js';
+import { FileUpload, generateOutputFilename } from '../files/file-upload.js';
 import { TranslationTracker } from './translation-tracker.js';
 
 /**
@@ -39,6 +39,23 @@ function getTranslationConfig(file) {
     const targetLanguageVal = file.targetLanguage;
 
     const provider = DomHelpers.getValue('llmProvider');
+    const currentModel = DomHelpers.getValue('model') || '';
+
+    // Regenerate output filename at translation time so placeholders like
+    // {model}, {date}, {datetime} reflect the current run. The value stored
+    // on the file object was computed at upload time and may be stale,
+    // especially when the same file is re-translated with a different model.
+    const outputPattern = DomHelpers.getValue('outputFilenamePattern')
+        || '{originalName} ({targetLang}).{ext}';
+    const resolvedOutputFilename = generateOutputFilename(
+        { name: file.name },
+        outputPattern,
+        {
+            sourceLang: sourceLanguageVal,
+            targetLang: targetLanguageVal,
+            model: currentModel
+        }
+    );
 
     const promptOptions = {
         preserve_technical_content: true,
@@ -53,7 +70,7 @@ function getTranslationConfig(file) {
     const config = {
         source_language: sourceLanguageVal,
         target_language: targetLanguageVal,
-        model: DomHelpers.getValue('model'),
+        model: currentModel,
         llm_api_endpoint: provider === 'openai' ?
                          DomHelpers.getValue('openaiEndpoint') :
                          DomHelpers.getValue('apiEndpoint'),
@@ -66,7 +83,7 @@ function getTranslationConfig(file) {
         poe_api_key: provider === 'poe' ? ApiKeyUtils.getValue('poeApiKey') : '',
         nim_api_key: provider === 'nim' ? ApiKeyUtils.getValue('nimApiKey') : '',
         input_filename: file.name,
-        output_filename: file.outputFilename,
+        output_filename: resolvedOutputFilename,
         file_type: file.fileType,
         prompt_options: promptOptions,
         bilingual_output: DomHelpers.getElement('bilingualMode')?.checked || false,
