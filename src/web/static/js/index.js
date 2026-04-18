@@ -61,7 +61,7 @@ import { TTSManager } from './tts/tts-manager.js';
  * Handle TTS update events from WebSocket
  * @param {Object} data - TTS update data
  */
-function handleTtsUpdate(data) {
+async function handleTtsUpdate(data) {
     const { status, progress, message, audio_filename, error, current_chunk, total_chunks } = data;
 
     // Update TTS progress section
