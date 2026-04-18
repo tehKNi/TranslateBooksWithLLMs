@@ -20,7 +20,7 @@ from src.tts.providers import (
     get_gpu_status,
     CHATTERBOX_LANGUAGES,
 )
-from src.tts.audio_processor import get_ffmpeg_status, install_ffmpeg_windows
+from src.tts.audio_processor import get_ffmpeg_status, install_ffmpeg as install_ffmpeg_auto
 from src.utils.file_utils import generate_tts_for_translation
 from src.api.services import FileService
 
@@ -529,7 +529,7 @@ def create_tts_blueprint(output_dir, socketio):
     @bp.route('/api/tts/ffmpeg/install', methods=['POST'])
     def install_ffmpeg():
         """
-        Attempt to automatically install FFmpeg (Windows only via winget).
+        Attempt to automatically install FFmpeg with a platform-supported installer.
 
         Returns:
             JSON with installation result
@@ -546,11 +546,11 @@ def create_tts_blueprint(output_dir, socketio):
         if not status["can_auto_install"]:
             return jsonify({
                 "success": False,
-                "error": "Auto-installation is only supported on Windows with winget"
+                "error": status.get("auto_install_error") or "Auto-installation is not available on this system"
             }), 400
 
         # Perform installation
-        success, message = install_ffmpeg_windows()
+        success, message = install_ffmpeg_auto()
 
         if success:
             return jsonify({

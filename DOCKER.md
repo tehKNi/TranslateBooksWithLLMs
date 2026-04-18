@@ -24,6 +24,8 @@ docker run -d \
 
 Access the web interface at: `http://localhost:5000`
 
+> **FFmpeg and TTS:** The base image does not preinstall FFmpeg. When TTS audio encoding needs it, the web UI can now trigger installation inside compatible Linux containers (for example Debian-based containers running as root). If auto-install is unavailable, the UI shows the recommended package-manager command instead.
+
 ## Available Image Tags
 
 - `latest` - Latest stable version from main branch

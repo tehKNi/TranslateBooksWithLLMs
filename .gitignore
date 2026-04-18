@@ -21,3 +21,6 @@ tests/.placeholder_tests/
 /plan/
 /experiments
 /tests
+!/tests/
+!/tests/unit/
+!/tests/unit/test_ffmpeg_installation.py

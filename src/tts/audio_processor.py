@@ -25,10 +25,130 @@ logger = logging.getLogger(__name__)
 SENTENCE_ENDINGS = re.compile(r'[.!?。！？…]+[\s\n]*')
 PARAGRAPH_BREAK = re.compile(r'\n\s*\n')
 
+LINUX_FFMPEG_INSTALLERS = {
+    'apt-get': [
+        ['apt-get', 'update'],
+        ['apt-get', 'install', '-y', 'ffmpeg'],
+    ],
+    'dnf': [
+        ['dnf', 'install', '-y', 'ffmpeg'],
+    ],
+    'pacman': [
+        ['pacman', '-Sy', '--noconfirm', 'ffmpeg'],
+    ],
+    'apk': [
+        ['apk', 'add', '--no-cache', 'ffmpeg'],
+    ],
+}
+
 
 def check_ffmpeg_available() -> bool:
     """Check if ffmpeg is available in the system PATH"""
     return shutil.which('ffmpeg') is not None
+
+
+def _is_root_user() -> bool:
+    """Return True when the current process runs with root privileges."""
+    geteuid = getattr(os, 'geteuid', None)
+    return callable(geteuid) and geteuid() == 0
+
+
+def _has_passwordless_sudo() -> bool:
+    """Return True when sudo can run non-interactively."""
+    if shutil.which('sudo') is None:
+        return False
+
+    try:
+        result = subprocess.run(
+            ['sudo', '-n', 'true'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+    except (subprocess.SubprocessError, OSError):
+        return False
+
+    return result.returncode == 0
+
+
+def _prefix_commands(commands: List[List[str]], prefix: List[str]) -> List[List[str]]:
+    """Prefix each command with the provided executable sequence."""
+    return [prefix + command for command in commands]
+
+
+def _format_commands(commands: List[List[str]]) -> Optional[str]:
+    """Format multiple shell commands as a readable string."""
+    if not commands:
+        return None
+    return " && ".join(" ".join(command) for command in commands)
+
+
+def _get_linux_ffmpeg_install_plan() -> dict:
+    """Build Linux installation metadata for FFmpeg."""
+    for install_method, commands in LINUX_FFMPEG_INSTALLERS.items():
+        if shutil.which(install_method) is None:
+            continue
+
+        if _is_root_user():
+            auto_install_commands = commands
+            install_command = _format_commands(commands)
+            can_auto_install = True
+            auto_install_error = None
+        elif _has_passwordless_sudo():
+            auto_install_commands = _prefix_commands(commands, ['sudo', '-n'])
+            install_command = _format_commands(_prefix_commands(commands, ['sudo']))
+            can_auto_install = True
+            auto_install_error = None
+        else:
+            auto_install_commands = []
+            install_command = _format_commands(_prefix_commands(commands, ['sudo']))
+            can_auto_install = False
+            auto_install_error = "Automatic installation on Linux requires elevated privileges (root or passwordless sudo)."
+
+        return {
+            "install_method": install_method,
+            "install_command": install_command,
+            "can_auto_install": can_auto_install,
+            "auto_install_error": auto_install_error,
+            "install_commands": auto_install_commands,
+        }
+
+    return {
+        "install_method": None,
+        "install_command": None,
+        "can_auto_install": False,
+        "auto_install_error": "No supported Linux package manager was found. Supported: apt-get, dnf, pacman, apk.",
+        "install_commands": [],
+    }
+
+
+def _get_ffmpeg_install_plan() -> dict:
+    """Build platform-aware FFmpeg installation metadata."""
+    import platform
+
+    system = platform.system().lower()
+    plan = {
+        "platform": system,
+        "install_method": None,
+        "install_command": None,
+        "can_auto_install": False,
+        "auto_install_error": None,
+        "install_commands": [],
+        "is_container": Path('/.dockerenv').exists(),
+    }
+
+    if system == "windows":
+        winget_available = shutil.which('winget') is not None
+        plan.update({
+            "install_method": "winget",
+            "install_command": "winget install Gyan.FFmpeg",
+            "can_auto_install": winget_available,
+            "auto_install_error": None if winget_available else "winget is not available. Please install FFmpeg manually.",
+        })
+    elif system == "linux":
+        plan.update(_get_linux_ffmpeg_install_plan())
+
+    return plan
 
 
 def get_ffmpeg_install_instructions() -> str:
@@ -69,7 +189,11 @@ def get_ffmpeg_install_instructions() -> str:
         instructions += "Fedora:\n"
         instructions += "  $ sudo dnf install ffmpeg\n\n"
         instructions += "Arch:\n"
-        instructions += "  $ sudo pacman -S ffmpeg\n"
+        instructions += "  $ sudo pacman -S ffmpeg\n\n"
+        instructions += "Alpine:\n"
+        instructions += "  $ sudo apk add --no-cache ffmpeg\n\n"
+        instructions += "Docker containers:\n"
+        instructions += "  If the app runs as root (or has passwordless sudo), the web UI can install FFmpeg automatically.\n"
 
     instructions += "\n" + "-" * 60 + "\n"
     instructions += "After installation, restart your terminal/application.\n"
@@ -110,13 +234,17 @@ def get_ffmpeg_status() -> dict:
     Returns:
         Dict with availability status and version info
     """
-    import platform
     available = check_ffmpeg_available()
+    install_plan = _get_ffmpeg_install_plan()
     result = {
         "available": available,
-        "platform": platform.system().lower(),
+        "platform": install_plan["platform"],
         "version": None,
-        "can_auto_install": platform.system().lower() == "windows"
+        "can_auto_install": install_plan["can_auto_install"],
+        "install_method": install_plan["install_method"],
+        "install_command": install_plan["install_command"],
+        "auto_install_error": install_plan["auto_install_error"],
+        "is_container": install_plan["is_container"],
     }
 
     if available:
@@ -187,6 +315,67 @@ def install_ffmpeg_windows() -> Tuple[bool, str]:
     except Exception as e:
         logger.exception("Error during FFmpeg installation")
         return False, f"Installation error: {str(e)}"
+
+
+def install_ffmpeg_linux() -> Tuple[bool, str]:
+    """
+    Attempt to install FFmpeg on Linux using the detected package manager.
+
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    import platform
+
+    if platform.system().lower() != "linux":
+        return False, "Auto-installation is only supported on Linux"
+
+    install_plan = _get_ffmpeg_install_plan()
+    if not install_plan["install_method"]:
+        return False, install_plan["auto_install_error"] or "No supported Linux package manager was found."
+    if not install_plan["can_auto_install"]:
+        return False, install_plan["auto_install_error"] or "Automatic installation is not available on this Linux system."
+
+    logger.info("Attempting to install FFmpeg via %s...", install_plan["install_method"])
+
+    try:
+        for command in install_plan["install_commands"]:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=300
+            )
+            if result.returncode != 0:
+                error_msg = result.stderr or result.stdout or "Unknown error"
+                logger.error("%s command failed: %s", install_plan["install_method"], error_msg)
+                return False, f"Installation failed: {error_msg}"
+
+        logger.info("FFmpeg installed successfully via %s", install_plan["install_method"])
+        return True, "FFmpeg installed successfully! Please restart the application to use TTS."
+    except subprocess.TimeoutExpired:
+        return False, "Installation timed out. Please try installing FFmpeg manually."
+    except FileNotFoundError:
+        return False, f"{install_plan['install_method']} not found. Please install FFmpeg manually."
+    except Exception as e:
+        logger.exception("Error during FFmpeg installation")
+        return False, f"Installation error: {str(e)}"
+
+
+def install_ffmpeg() -> Tuple[bool, str]:
+    """
+    Attempt to install FFmpeg using the best installer available for this platform.
+
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    import platform
+
+    system = platform.system().lower()
+    if system == "windows":
+        return install_ffmpeg_windows()
+    if system == "linux":
+        return install_ffmpeg_linux()
+    return False, "Auto-installation is only supported on Windows and Linux"
 
 
 def chunk_text_for_tts(text: str, max_chunk_size: int = 5000) -> List[str]:

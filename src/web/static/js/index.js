@@ -128,22 +128,7 @@ function handleTtsUpdate(data) {
 
             if (ttsStatusText) {
                 if (isFFmpegError) {
-                    // Show FFmpeg install button instead of long instructions
-                    ttsStatusText.innerHTML = `
-                        <span style="color: #ef4444;">❌ FFmpeg is required for audio encoding</span>
-                        <div style="margin-top: 10px;">
-                            <button id="installFFmpegBtn" class="btn btn-primary" style="margin-right: 10px;" onclick="window.installFFmpeg()">
-                                <span class="material-symbols-outlined" style="font-size: 18px; vertical-align: middle;">download</span>
-                                Install FFmpeg (winget)
-                            </button>
-                            <a href="https://ffmpeg.org/download.html" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
-                                Manual Download
-                            </a>
-                        </div>
-                        <p style="margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);">
-                            After installation, restart the application.
-                        </p>
-                    `;
+                    await window.showFFmpegInstallHelp(ttsStatusText);
                 } else {
                     ttsStatusText.textContent = `❌ TTS failed: ${errorText}`;
                 }
@@ -154,7 +139,81 @@ function handleTtsUpdate(data) {
 }
 
 /**
- * Install FFmpeg via winget (Windows)
+ * Render FFmpeg installation help based on the current platform
+ */
+window.showFFmpegInstallHelp = async function(ttsStatusText) {
+    if (!ttsStatusText) {
+        return;
+    }
+
+    let status = null;
+
+    try {
+        const response = await fetch('/api/tts/ffmpeg/status');
+        status = await response.json();
+    } catch (err) {
+        MessageLogger.addLog(`⚠️ Unable to load FFmpeg installer status: ${err.message}`);
+    }
+
+    const installMethod = status?.install_method ? ` (${status.install_method})` : '';
+    const installGuide = `
+        <a href="https://ffmpeg.org/download.html" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+            FFmpeg Install Guide
+        </a>
+    `;
+
+    if (status?.can_auto_install) {
+        const containerNote = status?.is_container
+            ? `
+                <p style="margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);">
+                    Installation will run inside the current container.
+                </p>
+            `
+            : '';
+
+        ttsStatusText.innerHTML = `
+            <span style="color: #ef4444;">❌ FFmpeg is required for audio encoding</span>
+            <div style="margin-top: 10px;">
+                <button id="installFFmpegBtn" class="btn btn-primary" style="margin-right: 10px;" onclick="window.installFFmpeg()">
+                    <span class="material-symbols-outlined" style="font-size: 18px; vertical-align: middle;">download</span>
+                    Install FFmpeg${installMethod}
+                </button>
+                ${installGuide}
+            </div>
+            ${containerNote}
+            <p style="margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);">
+                After installation, restart the application.
+            </p>
+        `;
+        return;
+    }
+
+    const autoInstallError = status?.auto_install_error
+        ? `
+            <p style="margin-top: 8px; font-size: 0.85rem; color: var(--text-secondary);">
+                ${status.auto_install_error}
+            </p>
+        `
+        : '';
+    const installCommand = status?.install_command
+        ? `
+            <p style="margin-top: 10px; font-size: 0.8rem; color: var(--text-secondary);">Recommended command:</p>
+            <code style="display: block; margin-top: 6px; padding: 8px; background: rgba(15, 23, 42, 0.55); border-radius: 6px; color: var(--text-primary); white-space: pre-wrap;">${status.install_command}</code>
+        `
+        : '';
+
+    ttsStatusText.innerHTML = `
+        <span style="color: #ef4444;">❌ FFmpeg is required for audio encoding</span>
+        ${autoInstallError}
+        ${installCommand}
+        <div style="margin-top: 10px;">
+            ${installGuide}
+        </div>
+    `;
+}
+
+/**
+ * Install FFmpeg using the server-supported installer
  */
 window.installFFmpeg = async function() {
     const btn = document.getElementById('installFFmpegBtn');
@@ -188,7 +247,7 @@ window.installFFmpeg = async function() {
                     <span style="color: #ef4444;">❌ Installation failed: ${result.error}</span>
                     <div style="margin-top: 10px;">
                         <a href="https://ffmpeg.org/download.html" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
-                            Manual Download
+                            FFmpeg Install Guide
                         </a>
                     </div>
                 `;
@@ -201,7 +260,7 @@ window.installFFmpeg = async function() {
                 <span style="color: #ef4444;">❌ Installation error: ${err.message}</span>
                 <div style="margin-top: 10px;">
                     <a href="https://ffmpeg.org/download.html" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
-                        Manual Download
+                        FFmpeg Install Guide
                     </a>
                 </div>
             `;
