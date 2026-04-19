@@ -1,4 +1,5 @@
-FROM ghcr.io/hydropix/translatebookswithllms:latest
+ARG BASE_IMAGE=ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
+FROM ${BASE_IMAGE}
 
 ARG INSTALL_CHATTERBOX=0
 

@@ -1,13 +1,14 @@
 # Docker Deployment Guide
 
-This guide explains how to use the official Docker images published to GitHub Container Registry.
+This guide explains how to use the Docker images published to GitHub Container Registry.
+For this fork, the default image is `ghcr.io/tehKNi/TranslateBooksWithLLMs`.
 
 ## Quick Start with Pre-built Image
 
 ### Pull the Latest Image
 
 ```bash
-docker pull ghcr.io/hydropix/translatebookswithllms:latest
+docker pull ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
 ```
 
 ### Run the Container
@@ -19,12 +20,30 @@ docker run -d \
   -v $(pwd)/logs:/app/logs \
   -e API_ENDPOINT=http://host.docker.internal:11434/api/generate \
   -e DEFAULT_MODEL=qwen3:14b \
-  ghcr.io/hydropix/translatebookswithllms:latest
+  ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
 ```
 
 Access the web interface at: `http://localhost:5000`
 
 > **FFmpeg and TTS:** The base image does not preinstall FFmpeg. When TTS audio encoding needs it, the web UI can now trigger installation inside compatible Linux containers (for example Debian-based containers running as root). If auto-install is unavailable, the UI shows the recommended package-manager command instead.
+
+## Selecting the Image Source
+
+The root Compose files in this fork default to:
+
+```env
+TRANSLATEBOOK_IMAGE=ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
+```
+
+Set `TRANSLATEBOOK_IMAGE` in your root `.env` file if you want to pin another tag or switch back to another registry image without editing the Compose YAML.
+
+If you build from the root `Dockerfile`, you can also override the base image:
+
+```bash
+docker build --build-arg BASE_IMAGE=ghcr.io/tehKNi/TranslateBooksWithLLMs:latest -t my-custom-translator .
+```
+
+That is useful when you want to extend a specific prebuilt image instead of the fork default.
 
 ## Available Image Tags
 
@@ -56,11 +75,9 @@ REQUEST_TIMEOUT=900
 ### 2. Create `docker-compose.yml`
 
 ```yaml
-version: '3.8'
-
 services:
   translate-book:
-    image: ghcr.io/hydropix/translatebookswithllms:latest
+    image: ${TRANSLATEBOOK_IMAGE:-ghcr.io/tehKNi/TranslateBooksWithLLMs:latest}
     ports:
       - "5000:5000"
     volumes:
@@ -89,11 +106,9 @@ docker compose up -d
 If your Ollama server is on a different machine in your local network:
 
 ```yaml
-version: '3.8'
-
 services:
   translate-book:
-    image: ghcr.io/hydropix/translatebookswithllms:latest
+    image: ${TRANSLATEBOOK_IMAGE:-ghcr.io/tehKNi/TranslateBooksWithLLMs:latest}
     ports:
       - "5000:5000"
     environment:
@@ -161,7 +176,7 @@ docker run -d \
   -p 5000:5000 \
   -e API_ENDPOINT=http://host.docker.internal:11434/api/generate \
   -e DEFAULT_MODEL=qwen3:14b \
-  ghcr.io/hydropix/translatebookswithllms:latest
+  ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
 ```
 
 **Note**: `host.docker.internal` allows the container to access services on the host.
@@ -169,8 +184,6 @@ docker run -d \
 ### Scenario 2: Ollama in Separate Container
 
 ```yaml
-version: '3.8'
-
 services:
   ollama:
     image: ollama/ollama:latest
@@ -180,7 +193,7 @@ services:
       - ollama_data:/root/.ollama
 
   translate-book:
-    image: ghcr.io/hydropix/translatebookswithllms:latest
+    image: ${TRANSLATEBOOK_IMAGE:-ghcr.io/tehKNi/TranslateBooksWithLLMs:latest}
     ports:
       - "5000:5000"
     environment:
@@ -203,7 +216,7 @@ docker run -d \
   -e LLM_PROVIDER=gemini \
   -e GEMINI_API_KEY=your_api_key_here \
   -e DEFAULT_MODEL=gemini-2.0-flash \
-  ghcr.io/hydropix/translatebookswithllms:latest
+  ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
 ```
 
 ### OpenAI
@@ -215,7 +228,7 @@ docker run -d \
   -e OPENAI_API_KEY=your_api_key_here \
   -e API_ENDPOINT=https://api.openai.com/v1/chat/completions \
   -e DEFAULT_MODEL=gpt-4o \
-  ghcr.io/hydropix/translatebookswithllms:latest
+  ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
 ```
 
 ## Health Check
@@ -268,8 +281,8 @@ If you need to build a custom image:
 
 ```bash
 # Clone the repository
-git clone https://github.com/hydropix/TranslateBookWithLLM.git
-cd TranslateBookWithLLM
+git clone https://github.com/tehKNi/TranslateBooksWithLLMs.git
+cd TranslateBooksWithLLMs
 
 # Build the image
 docker build -f deployment/Dockerfile -t my-custom-translator .
@@ -305,21 +318,21 @@ After rebuild, restart the container and refresh the UI. The Chatterbox provider
 
 ## GitHub Container Registry
 
-Images are automatically built and published to GitHub Container Registry when:
-- New commits are pushed to `main` branch (tagged as `latest`)
-- New version tags are created (e.g., `v1.0.0`)
+Images are published to GitHub Container Registry through the repository workflow:
+- **Workflow**: `.github/workflows/docker-publish.yml`
+- Publish it from the Actions tab or any trigger configured in your fork
 
 ### Pulling Specific Versions
 
 ```bash
 # Latest version
-docker pull ghcr.io/hydropix/translatebookswithllms:latest
+docker pull ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
 
 # Specific version
-docker pull ghcr.io/hydropix/translatebookswithllms:v1.2.3
+docker pull ghcr.io/tehKNi/TranslateBooksWithLLMs:v1.2.3
 
 # Specific commit
-docker pull ghcr.io/hydropix/translatebookswithllms:main-abc1234
+docker pull ghcr.io/tehKNi/TranslateBooksWithLLMs:main-abc1234
 ```
 
 ## CI/CD Integration
@@ -335,4 +348,4 @@ The project uses GitHub Actions to automatically build and publish Docker images
 For issues related to Docker deployment:
 1. Check this documentation
 2. Review container logs
-3. Open an issue at: https://github.com/hydropix/TranslateBookWithLLM/issues
+3. Open an issue at: https://github.com/tehKNi/TranslateBooksWithLLMs/issues
