@@ -274,11 +274,29 @@ cd TranslateBookWithLLM
 # Build the image
 docker build -f deployment/Dockerfile -t my-custom-translator .
 
+# Build with Chatterbox TTS baked into the image
+docker build -f deployment/Dockerfile --build-arg INSTALL_CHATTERBOX=1 -t my-custom-translator .
+
 # Run your custom image
 docker run -d -p 5000:5000 my-custom-translator
 ```
 
 ## Security Considerations
+
+### Enabling Chatterbox TTS in Docker
+
+Chatterbox is not installed by default because it adds large optional Python dependencies.
+
+```bash
+# docker compose (deployment/docker-compose.yml)
+cd deployment
+INSTALL_CHATTERBOX=1 docker compose up --build -d
+
+# plain docker build
+docker build -f deployment/Dockerfile --build-arg INSTALL_CHATTERBOX=1 -t my-custom-translator .
+```
+
+After rebuild, restart the container and refresh the UI. The Chatterbox provider should no longer appear as unavailable.
 
 - **API Keys**: Never commit API keys to `.env` files in version control
 - **Network**: Use Docker networks to isolate containers

@@ -5,15 +5,20 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# Install curl for healthcheck
+ARG INSTALL_CHATTERBOX=0
+
+# Install runtime packages
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
+    apt-get install -y --no-install-recommends curl ffmpeg && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    if [ "$INSTALL_CHATTERBOX" = "1" ] || [ "$INSTALL_CHATTERBOX" = "true" ]; then \
+        pip install --no-cache-dir torch torchaudio chatterbox-tts; \
+    fi
 
 # Copy application files
 COPY src/ /app/src/

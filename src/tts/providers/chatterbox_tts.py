@@ -645,6 +645,58 @@ def is_chatterbox_available() -> bool:
     return TORCH_AVAILABLE and CHATTERBOX_AVAILABLE and TORCHAUDIO_AVAILABLE
 
 
+def get_chatterbox_missing_dependencies() -> List[str]:
+    """Return the Python packages still missing for Chatterbox support."""
+    missing = []
+
+    if not TORCH_AVAILABLE:
+        missing.append("torch")
+    if not TORCHAUDIO_AVAILABLE:
+        missing.append("torchaudio")
+    if not CHATTERBOX_AVAILABLE:
+        missing.append("chatterbox-tts")
+
+    return missing
+
+
+def get_chatterbox_install_status() -> dict:
+    """
+    Return environment-aware installation guidance for Chatterbox.
+
+    Docker containers cannot be safely "fixed" by mutating the live container.
+    The image must be rebuilt with the optional Chatterbox dependencies baked in.
+    """
+    available = is_chatterbox_available()
+    is_container = Path('/.dockerenv').exists()
+    missing = get_chatterbox_missing_dependencies()
+
+    if is_container:
+        install_method = "docker-build"
+        install_command = (
+            "docker compose build --build-arg INSTALL_CHATTERBOX=1\n"
+            "docker compose up -d"
+        )
+        auto_install_error = (
+            "Chatterbox must be added to the Docker image and the container restarted."
+        )
+    else:
+        install_method = "pip"
+        install_command = "pip install torch torchaudio chatterbox-tts"
+        auto_install_error = (
+            "Install torch, torchaudio, and chatterbox-tts in this Python environment, "
+            "then restart the application."
+        )
+
+    return {
+        "available": available,
+        "is_container": is_container,
+        "install_method": install_method,
+        "install_command": install_command,
+        "auto_install_error": None if available else auto_install_error,
+        "missing_dependencies": missing,
+    }
+
+
 def get_gpu_status() -> dict:
     """
     Get GPU status information.

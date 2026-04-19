@@ -52,6 +52,7 @@ import { initializeThemeManager } from './utils/theme-manager.js';
 // TTS Modules
 // ========================================
 import { TTSManager } from './tts/tts-manager.js';
+import { buildChatterboxInstallHelp } from './tts/chatterbox-install-help.js';
 
 // ========================================
 // TTS Event Handler
@@ -607,6 +608,7 @@ async function showTTSModal(filename, filepath) {
     }
 
     const isChatterboxAvailable = providersInfo.chatterbox?.available || false;
+    const chatterboxInstallHelp = buildChatterboxInstallHelp(providersInfo.chatterbox);
 
     // Build voice prompts options
     const voicePromptsOptions = voicePrompts.map(vp =>
@@ -647,6 +649,7 @@ async function showTTSModal(filename, filepath) {
                             </div>
                         </div>
                     </div>
+                    ${chatterboxInstallHelp}
 
                     <!-- Edge-TTS Options -->
                     <div id="ttsModalEdgeOptions">
@@ -841,6 +844,7 @@ async function showTTSModal(filename, filepath) {
     const edgeOptions = document.getElementById('ttsModalEdgeOptions');
     const chatterboxOptions = document.getElementById('ttsModalChatterboxOptions');
     const gpuStatusDiv = document.getElementById('ttsModalGpuStatus');
+    const copyInstallCommandBtn = document.getElementById('copyChatterboxInstallCommand');
 
     // Slider value updates
     const exaggerationSlider = document.getElementById('ttsModalExaggeration');
@@ -856,6 +860,23 @@ async function showTTSModal(filename, filepath) {
     if (cfgSlider && cfgValue) {
         cfgSlider.addEventListener('input', () => {
             cfgValue.textContent = parseFloat(cfgSlider.value).toFixed(2);
+        });
+    }
+
+    if (copyInstallCommandBtn) {
+        copyInstallCommandBtn.addEventListener('click', async () => {
+            const installCommand = providersInfo.chatterbox?.install?.install_command;
+            if (!installCommand) {
+                MessageLogger.showMessage('No Chatterbox install command is available for this environment.', 'error');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(installCommand);
+                MessageLogger.showMessage('Chatterbox install command copied to clipboard.', 'success');
+            } catch (error) {
+                MessageLogger.showMessage(`Failed to copy Chatterbox install command: ${error.message}`, 'error');
+            }
         });
     }
 

@@ -17,6 +17,7 @@ from werkzeug.utils import secure_filename
 from src.tts.tts_config import TTSConfig, DEFAULT_VOICES
 from src.tts.providers import (
     is_chatterbox_available,
+    get_chatterbox_install_status,
     get_gpu_status,
     CHATTERBOX_LANGUAGES,
 )
@@ -228,10 +229,12 @@ def create_tts_blueprint(output_dir, socketio):
 
             # Validate provider choice
             if provider == 'chatterbox' and not is_chatterbox_available():
+                install_status = get_chatterbox_install_status()
                 return jsonify({
                     "error": "Chatterbox TTS is not available",
                     "details": "Missing dependencies: torch, chatterbox-tts, or torchaudio. "
-                               "Install with: pip install chatterbox-tts torch torchaudio"
+                               "Install with: pip install chatterbox-tts torch torchaudio",
+                    "install": install_status,
                 }), 400
 
             tts_config = TTSConfig(
@@ -319,6 +322,7 @@ def create_tts_blueprint(output_dir, socketio):
             JSON with supported languages and availability status
         """
         available = is_chatterbox_available()
+        install_status = get_chatterbox_install_status()
 
         return jsonify({
             "available": available,
@@ -330,7 +334,8 @@ def create_tts_blueprint(output_dir, socketio):
                 "emotion_control": True,
                 "gpu_acceleration": True,
             },
-            "note": "Voice is determined by uploaded voice prompt or uses default model voice"
+            "note": "Voice is determined by uploaded voice prompt or uses default model voice",
+            "install": install_status,
         })
 
     @bp.route('/api/tts/providers', methods=['GET'])
@@ -341,6 +346,8 @@ def create_tts_blueprint(output_dir, socketio):
         Returns:
             JSON with provider information and availability
         """
+        chatterbox_status = get_chatterbox_install_status()
+
         providers = {
             "edge-tts": {
                 "name": "Edge TTS",
@@ -359,7 +366,7 @@ def create_tts_blueprint(output_dir, socketio):
             "chatterbox": {
                 "name": "Chatterbox TTS",
                 "description": "Local GPU-accelerated TTS with voice cloning",
-                "available": is_chatterbox_available(),
+                "available": chatterbox_status["available"],
                 "features": {
                     "voice_selection": False,  # Voice determined by audio prompt
                     "rate_control": False,
@@ -370,6 +377,7 @@ def create_tts_blueprint(output_dir, socketio):
                     "gpu_required": True,
                 },
                 "language_count": len(CHATTERBOX_LANGUAGES),
+                "install": chatterbox_status,
             }
         }
 

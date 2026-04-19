@@ -24,3 +24,4 @@ tests/.placeholder_tests/
 !/tests/
 !/tests/unit/
 !/tests/unit/test_ffmpeg_installation.py
+!/tests/unit/test_chatterbox_installation.py
