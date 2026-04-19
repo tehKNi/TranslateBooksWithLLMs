@@ -9,6 +9,7 @@ import { StateManager } from '../core/state-manager.js';
 import { ApiClient } from '../core/api-client.js';
 import { WebSocketManager } from '../core/websocket-manager.js';
 import { MessageLogger } from '../ui/message-logger.js';
+import { renderRuntimeStatus } from '../ui/runtime-status.js';
 
 // Storage configuration with versioning
 const STORAGE_VERSION = 1;
@@ -72,6 +73,7 @@ export const LifecycleManager = {
             try {
                 const healthData = await ApiClient.healthCheck();
                 MessageLogger.addLog('Server health check OK.');
+                renderRuntimeStatus(healthData);
 
                 if (healthData.supported_formats) {
                     MessageLogger.addLog(`Supported file formats: ${healthData.supported_formats.join(', ')}`);

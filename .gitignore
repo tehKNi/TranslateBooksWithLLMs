@@ -25,3 +25,8 @@ tests/.placeholder_tests/
 !/tests/unit/
 !/tests/unit/test_ffmpeg_installation.py
 !/tests/unit/test_chatterbox_installation.py
+!/tests/unit/test_runtime_health.py
+!/tests/web/
+!/tests/web/chatterbox-install-help.test.mjs
+!/tests/web/frontend-module-tracking.test.mjs
+!/tests/web/runtime-status.test.mjs

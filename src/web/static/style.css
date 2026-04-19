@@ -221,6 +221,61 @@ body {
     gap: 1rem;
 }
 
+.runtime-status-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-left: 1rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid var(--border-light);
+    min-width: 280px;
+}
+
+.runtime-status-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.runtime-status-details {
+    font-size: 0.78rem;
+    color: var(--text-muted-light);
+    line-height: 1.35;
+}
+
+.runtime-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    background: rgba(54, 118, 216, 0.12);
+    color: var(--text-dark);
+    border: 1px solid rgba(54, 118, 216, 0.18);
+}
+
+.runtime-chip-version {
+    background: rgba(13, 110, 253, 0.14);
+}
+
+.runtime-chip-ok {
+    background: rgba(40, 167, 69, 0.16);
+    border-color: rgba(40, 167, 69, 0.22);
+}
+
+.runtime-chip-warn {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.22);
+}
+
+html.dark .runtime-status-panel {
+    background: rgba(34, 34, 34, 0.92);
+    border-color: rgba(136, 136, 136, 0.2);
+}
+
 .header .logo-icon {
     display: flex;
     align-items: center;

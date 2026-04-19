@@ -8,8 +8,10 @@ import logging
 import requests
 import re
 import time
+import subprocess
 from flask import Blueprint, request, jsonify, send_from_directory
 from pathlib import Path
+from datetime import datetime, timezone
 
 
 def get_base_path():
@@ -52,6 +54,7 @@ from src.config import (
     MAX_TOKENS_PER_CHUNK,
     OUTPUT_FILENAME_PATTERN
 )
+from src.tts.providers import get_chatterbox_install_status
 
 # Setup logger for this module
 logger = logging.getLogger('config_routes')
@@ -72,6 +75,50 @@ def create_config_blueprint(server_session_id=None):
     # Ensure it's an integer for consistency with health check response
     startup_time = int(server_session_id) if server_session_id else int(time.time())
 
+    def _run_git_command(args):
+        try:
+            result = subprocess.run(
+                ['git', *args],
+                capture_output=True,
+                text=True,
+                timeout=2,
+                check=False,
+            )
+            if result.returncode == 0:
+                return result.stdout.strip() or None
+        except Exception:
+            return None
+        return None
+
+    def get_runtime_metadata():
+        branch = (
+            os.getenv('APP_BRANCH')
+            or os.getenv('GIT_BRANCH')
+            or _run_git_command(['rev-parse', '--abbrev-ref', 'HEAD'])
+            or 'unknown'
+        )
+        revision = (
+            os.getenv('APP_REVISION')
+            or os.getenv('GIT_COMMIT')
+            or _run_git_command(['rev-parse', '--short', 'HEAD'])
+            or 'unknown'
+        )
+        version = (
+            os.getenv('APP_VERSION')
+            or os.getenv('BUILD_VERSION')
+            or 'dev'
+        )
+
+        return {
+            "version": version,
+            "branch": branch,
+            "revision": revision,
+            "version_display": f"{branch}-{revision}",
+            "started_at_iso": datetime.fromtimestamp(startup_time, timezone.utc).isoformat().replace("+00:00", "Z"),
+            "is_container": Path('/.dockerenv').exists(),
+            "session_id": startup_time,
+        }
+
     @bp.route('/')
     def serve_interface():
         """Serve the main translation interface"""
@@ -85,6 +132,8 @@ def create_config_blueprint(server_session_id=None):
     @bp.route('/api/health', methods=['GET'])
     def health_check():
         """API health check endpoint"""
+        runtime = get_runtime_metadata()
+        chatterbox_install = get_chatterbox_install_status()
         return jsonify({
             "status": "ok",
             "message": "Translation API is running",
@@ -92,7 +141,14 @@ def create_config_blueprint(server_session_id=None):
             "ollama_default_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
             "supported_formats": ["txt", "epub", "srt"],
             "startup_time": startup_time,  # Used to detect server restarts
-            "session_id": startup_time  # Alias for compatibility with LifecycleManager
+            "session_id": startup_time,  # Alias for compatibility with LifecycleManager
+            "runtime": runtime,
+            "tts": {
+                "chatterbox": {
+                    "available": chatterbox_install["available"],
+                    "install": chatterbox_install,
+                }
+            },
         })
 
     @bp.route('/api/models', methods=['GET', 'POST'])
