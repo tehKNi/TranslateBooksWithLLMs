@@ -1,14 +1,14 @@
 # Docker Deployment Guide
 
 This guide explains how to use the Docker images published to GitHub Container Registry.
-For this fork, the default image is `ghcr.io/tehKNi/TranslateBooksWithLLMs`.
+For this fork, the default image is `ghcr.io/tehkni/translatebookswithllms`.
 
 ## Quick Start with Pre-built Image
 
 ### Pull the Latest Image
 
 ```bash
-docker pull ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
+docker pull ghcr.io/tehkni/translatebookswithllms:latest
 ```
 
 ### Run the Container
@@ -20,7 +20,7 @@ docker run -d \
   -v $(pwd)/logs:/app/logs \
   -e API_ENDPOINT=http://host.docker.internal:11434/api/generate \
   -e DEFAULT_MODEL=qwen3:14b \
-  ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
+  ghcr.io/tehkni/translatebookswithllms:latest
 ```
 
 Access the web interface at: `http://localhost:5000`
@@ -32,7 +32,7 @@ Access the web interface at: `http://localhost:5000`
 The root Compose files in this fork default to:
 
 ```env
-TRANSLATEBOOK_IMAGE=ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
+TRANSLATEBOOK_IMAGE=ghcr.io/tehkni/translatebookswithllms:latest
 ```
 
 Set `TRANSLATEBOOK_IMAGE` in your root `.env` file if you want to pin another tag or switch back to another registry image without editing the Compose YAML.
@@ -40,7 +40,7 @@ Set `TRANSLATEBOOK_IMAGE` in your root `.env` file if you want to pin another ta
 If you build from the root `Dockerfile`, you can also override the base image:
 
 ```bash
-docker build --build-arg BASE_IMAGE=ghcr.io/tehKNi/TranslateBooksWithLLMs:latest -t my-custom-translator .
+docker build --build-arg BASE_IMAGE=ghcr.io/tehkni/translatebookswithllms:latest -t my-custom-translator .
 ```
 
 That is useful when you want to extend a specific prebuilt image instead of the fork default.
@@ -77,7 +77,7 @@ REQUEST_TIMEOUT=900
 ```yaml
 services:
   translate-book:
-    image: ${TRANSLATEBOOK_IMAGE:-ghcr.io/tehKNi/TranslateBooksWithLLMs:latest}
+    image: ${TRANSLATEBOOK_IMAGE:-ghcr.io/tehkni/translatebookswithllms:latest}
     ports:
       - "5000:5000"
     volumes:
@@ -108,7 +108,7 @@ If your Ollama server is on a different machine in your local network:
 ```yaml
 services:
   translate-book:
-    image: ${TRANSLATEBOOK_IMAGE:-ghcr.io/tehKNi/TranslateBooksWithLLMs:latest}
+    image: ${TRANSLATEBOOK_IMAGE:-ghcr.io/tehkni/translatebookswithllms:latest}
     ports:
       - "5000:5000"
     environment:
@@ -176,7 +176,7 @@ docker run -d \
   -p 5000:5000 \
   -e API_ENDPOINT=http://host.docker.internal:11434/api/generate \
   -e DEFAULT_MODEL=qwen3:14b \
-  ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
+  ghcr.io/tehkni/translatebookswithllms:latest
 ```
 
 **Note**: `host.docker.internal` allows the container to access services on the host.
@@ -193,7 +193,7 @@ services:
       - ollama_data:/root/.ollama
 
   translate-book:
-    image: ${TRANSLATEBOOK_IMAGE:-ghcr.io/tehKNi/TranslateBooksWithLLMs:latest}
+    image: ${TRANSLATEBOOK_IMAGE:-ghcr.io/tehkni/translatebookswithllms:latest}
     ports:
       - "5000:5000"
     environment:
@@ -216,7 +216,7 @@ docker run -d \
   -e LLM_PROVIDER=gemini \
   -e GEMINI_API_KEY=your_api_key_here \
   -e DEFAULT_MODEL=gemini-2.0-flash \
-  ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
+  ghcr.io/tehkni/translatebookswithllms:latest
 ```
 
 ### OpenAI
@@ -228,7 +228,7 @@ docker run -d \
   -e OPENAI_API_KEY=your_api_key_here \
   -e API_ENDPOINT=https://api.openai.com/v1/chat/completions \
   -e DEFAULT_MODEL=gpt-4o \
-  ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
+  ghcr.io/tehkni/translatebookswithllms:latest
 ```
 
 ## Health Check
@@ -326,13 +326,13 @@ Images are published to GitHub Container Registry through the repository workflo
 
 ```bash
 # Latest version
-docker pull ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
+docker pull ghcr.io/tehkni/translatebookswithllms:latest
 
 # Specific version
-docker pull ghcr.io/tehKNi/TranslateBooksWithLLMs:v1.2.3
+docker pull ghcr.io/tehkni/translatebookswithllms:v1.2.3
 
 # Specific commit
-docker pull ghcr.io/tehKNi/TranslateBooksWithLLMs:main-abc1234
+docker pull ghcr.io/tehkni/translatebookswithllms:main-abc1234
 ```
 
 ## CI/CD Integration

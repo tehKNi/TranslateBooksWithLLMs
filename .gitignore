@@ -28,6 +28,7 @@ tests/.placeholder_tests/
 !/tests/unit/test_runtime_health.py
 !/tests/web/
 !/tests/web/chatterbox-install-help.test.mjs
+!/tests/web/docker-image-casing.test.mjs
 !/tests/web/docker-image-origin.test.mjs
 !/tests/web/frontend-helper-fallbacks.test.mjs
 !/tests/web/frontend-module-tracking.test.mjs

@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/tehKNi/TranslateBooksWithLLMs:latest
+ARG BASE_IMAGE=ghcr.io/tehkni/translatebookswithllms:latest
 FROM ${BASE_IMAGE}
 
 ARG INSTALL_CHATTERBOX=0
