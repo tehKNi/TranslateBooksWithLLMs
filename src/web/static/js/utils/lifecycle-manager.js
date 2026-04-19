@@ -9,7 +9,70 @@ import { StateManager } from '../core/state-manager.js';
 import { ApiClient } from '../core/api-client.js';
 import { WebSocketManager } from '../core/websocket-manager.js';
 import { MessageLogger } from '../ui/message-logger.js';
-import { renderRuntimeStatus } from '../ui/runtime-status.js';
+
+function escapeFallbackHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function formatFallbackStartTime(startedAtIso) {
+    if (!startedAtIso) {
+        return 'unknown start';
+    }
+
+    const date = new Date(startedAtIso);
+    if (Number.isNaN(date.getTime())) {
+        return 'unknown start';
+    }
+
+    return date.toLocaleString();
+}
+
+function renderRuntimeStatusFallback(healthData = {}) {
+    const panelEl = document.getElementById('runtimeStatusPanel');
+
+    if (!panelEl) {
+        return;
+    }
+
+    const runtime = healthData.runtime || {};
+    const chatterbox = healthData.tts?.chatterbox || {};
+    const install = chatterbox.install || {};
+    const versionDisplay = runtime.version_display || 'unknown';
+    const environmentLabel = runtime.is_container ? 'Docker image' : 'Local runtime';
+    const chatterboxSummary = chatterbox.available
+        ? 'Chatterbox available'
+        : 'Chatterbox unavailable';
+    const chatterboxDetail = chatterbox.available
+        ? 'Chatterbox dependencies are available in the current runtime.'
+        : (install.auto_install_error || 'Chatterbox dependencies are missing in the current runtime.');
+
+    panelEl.innerHTML = `
+        <div class="runtime-status-summary">
+            <span class="runtime-chip runtime-chip-version">Version ${escapeFallbackHtml(versionDisplay)}</span>
+            <span class="runtime-chip">${escapeFallbackHtml(environmentLabel)}</span>
+            <span class="runtime-chip ${chatterbox.available ? 'runtime-chip-ok' : 'runtime-chip-warn'}">${escapeFallbackHtml(chatterboxSummary)}</span>
+        </div>
+        <div class="runtime-status-details">
+            <span>Started: ${escapeFallbackHtml(formatFallbackStartTime(runtime.started_at_iso))}</span>
+            <span> · ${escapeFallbackHtml(chatterboxDetail)}</span>
+        </div>
+    `;
+}
+
+async function renderRuntimeStatusSafely(healthData = {}) {
+    try {
+        const { renderRuntimeStatus } = await import('../ui/runtime-status.js');
+        renderRuntimeStatus(healthData);
+    } catch (error) {
+        console.warn('Runtime status helper module unavailable, using inline fallback.', error);
+        renderRuntimeStatusFallback(healthData);
+    }
+}
 
 // Storage configuration with versioning
 const STORAGE_VERSION = 1;
@@ -73,7 +136,7 @@ export const LifecycleManager = {
             try {
                 const healthData = await ApiClient.healthCheck();
                 MessageLogger.addLog('Server health check OK.');
-                renderRuntimeStatus(healthData);
+                await renderRuntimeStatusSafely(healthData);
 
                 if (healthData.supported_formats) {
                     MessageLogger.addLog(`Supported file formats: ${healthData.supported_formats.join(', ')}`);
