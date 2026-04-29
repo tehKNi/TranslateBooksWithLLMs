@@ -672,12 +672,9 @@ def get_chatterbox_install_status() -> dict:
 
     if is_container:
         install_method = "docker-build"
-        install_command = (
-            "docker compose build --build-arg INSTALL_CHATTERBOX=1\n"
-            "docker compose up -d"
-        )
+        install_command = "INSTALL_CHATTERBOX=1 docker compose up -d --build"
         auto_install_error = (
-            "Chatterbox must be added to the Docker image and the container restarted."
+            "Chatterbox must be baked into the Docker image. Rebuild and restart the service with INSTALL_CHATTERBOX=1."
         )
     else:
         install_method = "pip"

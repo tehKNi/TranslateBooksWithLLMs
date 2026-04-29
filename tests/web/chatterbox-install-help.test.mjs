@@ -6,12 +6,12 @@ test('buildChatterboxInstallHelp renders docker rebuild guidance for container i
     const html = buildChatterboxInstallHelp({
         available: false,
         install_method: 'docker-build',
-        install_command: 'docker compose build --build-arg INSTALL_CHATTERBOX=1 && docker compose up -d',
-        auto_install_error: 'Chatterbox must be added to the Docker image and the container restarted.',
+        install_command: 'INSTALL_CHATTERBOX=1 docker compose up -d --build',
+        auto_install_error: 'Chatterbox must be baked into the Docker image. Rebuild and restart the service with INSTALL_CHATTERBOX=1.',
         is_container: true
     });
 
     assert.match(html, /INSTALL_CHATTERBOX=1/);
     assert.match(html, /Copy Docker rebuild command/);
-    assert.match(html, /container restarted/i);
+    assert.match(html, /baked into the docker image/i);
 });

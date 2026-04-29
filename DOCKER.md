@@ -25,7 +25,7 @@ docker run -d \
 
 Access the web interface at: `http://localhost:5000`
 
-> **FFmpeg and TTS:** The base image does not preinstall FFmpeg. When TTS audio encoding needs it, the web UI can now trigger installation inside compatible Linux containers (for example Debian-based containers running as root). If auto-install is unavailable, the UI shows the recommended package-manager command instead.
+> **Optional TTS providers:** The repository Dockerfile can bake optional TTS dependencies into the image at build time. Runtime mutation of a live container is not the supported path for Chatterbox or OmniVoice.
 
 ## Selecting the Image Source
 
@@ -100,6 +100,26 @@ services:
 ```bash
 docker compose up -d
 ```
+
+### Optional TTS builds
+
+Optional local TTS providers are disabled by default. Enable them only when you need them and rebuild the image:
+
+```bash
+INSTALL_CHATTERBOX=1 docker compose up -d --build
+```
+
+```bash
+INSTALL_OMNIVOICE=1 docker compose up -d --build
+```
+
+Enable both providers in the same image:
+
+```bash
+INSTALL_CHATTERBOX=1 INSTALL_OMNIVOICE=1 docker compose up -d --build
+```
+
+The same variables work with `docker-compose.remote-ollama.example.yml`.
 
 ## Using with Remote Ollama Server
 

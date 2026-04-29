@@ -1,6 +1,11 @@
 services:
   translate-book:
     image: ${TRANSLATEBOOK_IMAGE:-ghcr.io/tehkni/translatebookswithllms:latest}
+    build:
+      context: .
+      args:
+        INSTALL_CHATTERBOX: ${INSTALL_CHATTERBOX:-0}
+        INSTALL_OMNIVOICE: ${INSTALL_OMNIVOICE:-0}
     ports:
       - "5000:5000"
     environment:
