@@ -62,35 +62,43 @@ function escapeFallbackHtml(value) {
         .replaceAll("'", '&#39;');
 }
 
-function buildChatterboxInstallHelpFallback(providerInfo = {}) {
+function buildLocalTTSInstallHelpFallback(providerInfo = {}, options = {}) {
     if (!providerInfo || providerInfo.available) {
         return '';
     }
 
     const install = providerInfo.install || providerInfo;
+    const {
+        providerName,
+        modalId,
+        commandId,
+        copyButtonId,
+        dockerHeading,
+        pythonHeading,
+    } = options;
     const installCommand = install.install_command || '';
     const installError = install.auto_install_error || '';
     const copyLabel = install.install_method === 'docker-build'
         ? 'Copy Docker rebuild command'
         : 'Copy install command';
     const heading = install.is_container
-        ? 'Chatterbox is not installed in this Docker image.'
-        : 'Chatterbox is not installed in this Python environment.';
+        ? dockerHeading
+        : pythonHeading;
     const missing = Array.isArray(install.missing_dependencies) && install.missing_dependencies.length > 0
         ? `<p style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Missing: ${escapeFallbackHtml(install.missing_dependencies.join(', '))}</p>`
         : '';
     const installCommandBlock = installCommand
         ? `
             <p style="margin: 12px 0 6px 0; font-size: 0.8rem; color: var(--text-secondary);">Recommended command:</p>
-            <code id="chatterboxInstallCommand" style="display: block; margin-top: 6px; padding: 8px; background: rgba(15, 23, 42, 0.55); border-radius: 6px; color: var(--text-primary); white-space: pre-wrap;">${escapeFallbackHtml(installCommand)}</code>
-            <button type="button" id="copyChatterboxInstallCommand" class="btn btn-secondary" style="margin-top: 10px;">
+            <code id="${commandId}" style="display: block; margin-top: 6px; padding: 8px; background: rgba(15, 23, 42, 0.55); border-radius: 6px; color: var(--text-primary); white-space: pre-wrap;">${escapeFallbackHtml(installCommand)}</code>
+            <button type="button" id="${copyButtonId}" class="btn btn-secondary" style="margin-top: 10px;">
                 ${copyLabel}
             </button>
         `
         : '';
 
     return `
-        <div id="ttsModalChatterboxInstallHelp" style="margin-top: 16px; padding: 12px; border-radius: 8px; border: 1px solid #ef4444; background: rgba(127, 29, 29, 0.12);">
+        <div id="${modalId}" data-provider="${escapeFallbackHtml(providerName)}" style="margin-top: 16px; padding: 12px; border-radius: 8px; border: 1px solid #ef4444; background: rgba(127, 29, 29, 0.12);">
             <p style="margin: 0; color: #fca5a5; font-size: 0.9rem; font-weight: 600;">${heading}</p>
             <p style="margin: 8px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">${escapeFallbackHtml(installError)}</p>
             ${missing}
@@ -105,7 +113,31 @@ async function buildChatterboxInstallHelpMarkup(providerInfo = {}) {
         return buildChatterboxInstallHelp(providerInfo);
     } catch (error) {
         console.warn('Chatterbox install helper module unavailable, using inline fallback.', error);
-        return buildChatterboxInstallHelpFallback(providerInfo);
+        return buildLocalTTSInstallHelpFallback(providerInfo, {
+            providerName: 'chatterbox',
+            modalId: 'ttsModalChatterboxInstallHelp',
+            commandId: 'chatterboxInstallCommand',
+            copyButtonId: 'copyChatterboxInstallCommand',
+            dockerHeading: 'Chatterbox is not installed in this Docker image.',
+            pythonHeading: 'Chatterbox is not installed in this Python environment.',
+        });
+    }
+}
+
+async function buildOmniVoiceInstallHelpMarkup(providerInfo = {}) {
+    try {
+        const { buildOmniVoiceInstallHelp } = await import('./tts/chatterbox-install-help.js');
+        return buildOmniVoiceInstallHelp(providerInfo);
+    } catch (error) {
+        console.warn('OmniVoice install helper module unavailable, using inline fallback.', error);
+        return buildLocalTTSInstallHelpFallback(providerInfo, {
+            providerName: 'omnivoice',
+            modalId: 'ttsModalOmniVoiceInstallHelp',
+            commandId: 'omnivoiceInstallCommand',
+            copyButtonId: 'copyOmniVoiceInstallCommand',
+            dockerHeading: 'OmniVoice is not installed in this Docker image.',
+            pythonHeading: 'OmniVoice is not installed in this Python environment.',
+        });
     }
 }
 
@@ -663,7 +695,9 @@ async function showTTSModal(filename, filepath) {
     }
 
     const isChatterboxAvailable = providersInfo.chatterbox?.available || false;
+    const isOmniVoiceAvailable = providersInfo.omnivoice?.available || false;
     const chatterboxInstallHelp = await buildChatterboxInstallHelpMarkup(providersInfo.chatterbox);
+    const omnivoiceInstallHelp = await buildOmniVoiceInstallHelpMarkup(providersInfo.omnivoice);
 
     // Build voice prompts options
     const voicePromptsOptions = voicePrompts.map(vp =>
@@ -692,10 +726,13 @@ async function showTTSModal(filename, filepath) {
                                 <option value="chatterbox" ${!isChatterboxAvailable ? 'disabled' : ''}>
                                     Chatterbox TTS ${!isChatterboxAvailable ? '(Not Available)' : '(Local GPU)'}
                                 </option>
+                                <option value="omnivoice" ${!isOmniVoiceAvailable ? 'disabled' : ''}>
+                                    OmniVoice ${!isOmniVoiceAvailable ? '(Not Available)' : '(Local)'}
+                                </option>
                             </select>
                         </div>
 
-                        <!-- GPU Status (shown when Chatterbox selected) -->
+                        <!-- GPU Status (shown when a local provider is selected) -->
                         <div id="ttsModalGpuStatus" class="form-group" style="margin-bottom: 0; display: none;">
                             <label style="font-size: 13px;">GPU Status</label>
                             <div class="gpu-status ${gpuStatus.cuda_available ? 'gpu-available' : 'gpu-unavailable'}">
@@ -705,6 +742,7 @@ async function showTTSModal(filename, filepath) {
                         </div>
                     </div>
                     ${chatterboxInstallHelp}
+                    ${omnivoiceInstallHelp}
 
                     <!-- Edge-TTS Options -->
                     <div id="ttsModalEdgeOptions">
@@ -875,6 +913,80 @@ async function showTTSModal(filename, filepath) {
                             </div>
                         </div>
                     </div>
+
+                    <!-- OmniVoice Options (hidden by default) -->
+                    <div id="ttsModalOmniVoiceOptions" style="display: none;">
+                        <div style="display: grid; gap: 15px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 13px;">Generation Mode</label>
+                                <select id="ttsModalOmniVoiceMode" class="form-control" style="font-size: 13px;">
+                                    <option value="auto">Auto Voice</option>
+                                    <option value="voice_design">Voice Design</option>
+                                    <option value="voice_cloning">Voice Cloning</option>
+                                </select>
+                                <small style="color: #6b7280;">Pick automatic voice selection, prompt-based voice design, or reference-audio cloning.</small>
+                            </div>
+
+                            <div id="ttsModalOmniVoiceInstructGroup" class="form-group" style="margin-bottom: 0; display: none;">
+                                <label style="font-size: 13px;">Voice Design Prompt</label>
+                                <input type="text" id="ttsModalOmniVoiceInstruct" class="form-control" placeholder="e.g., female, low pitch, british accent" style="font-size: 13px;">
+                            </div>
+
+                            <div id="ttsModalOmniVoiceCloneGroup" style="display: none; background: #2a2a2a; border-radius: 8px; padding: 15px; border: 1px solid #60a5fa;">
+                                <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #60a5fa;">Reference Audio</h4>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label style="font-size: 13px;">Voice Prompt</label>
+                                    <select id="ttsModalOmniVoicePrompt" class="form-control" style="font-size: 13px;">
+                                        <option value="">Select a previously uploaded voice prompt...</option>
+                                        ${voicePromptsOptions}
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label style="font-size: 13px;">Selected Reference Path</label>
+                                    <input type="text" id="ttsModalOmniVoiceRefAudioPath" class="form-control" readonly placeholder="Select a reference audio file" style="font-size: 13px;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px;">Reference Transcript (optional)</label>
+                                    <input type="text" id="ttsModalOmniVoiceRefText" class="form-control" placeholder="Optional transcript of the reference audio" style="font-size: 13px;">
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px;">Target Language</label>
+                                    <select id="ttsModalOmniVoiceLanguage" class="form-control" style="font-size: 13px;">
+                                        <option value="Chinese">Chinese (中文)</option>
+                                        <option value="English">English</option>
+                                        <option value="French">French (Français)</option>
+                                        <option value="Spanish">Spanish (Español)</option>
+                                        <option value="German">German (Deutsch)</option>
+                                        <option value="Japanese">Japanese (日本語)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px;">Speed</label>
+                                    <input type="number" id="ttsModalOmniVoiceSpeed" class="form-control" value="1.0" step="0.05" min="0.25" style="font-size: 13px;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px;">Duration (s)</label>
+                                    <input type="number" id="ttsModalOmniVoiceDuration" class="form-control" placeholder="Optional" step="0.1" min="0" style="font-size: 13px;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px;">Diffusion Steps</label>
+                                    <input type="number" id="ttsModalOmniVoiceNumStep" class="form-control" value="32" step="1" min="1" style="font-size: 13px;">
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 13px;">Audio Format</label>
+                                <select id="ttsModalOmniVoiceFormat" class="form-control" style="font-size: 13px;">
+                                    <option value="wav">WAV (lossless)</option>
+                                    <option value="mp3" selected>MP3 (compatible)</option>
+                                    <option value="opus">Opus (compact)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -898,8 +1010,13 @@ async function showTTSModal(filename, filepath) {
     const providerSelect = document.getElementById('ttsModalProvider');
     const edgeOptions = document.getElementById('ttsModalEdgeOptions');
     const chatterboxOptions = document.getElementById('ttsModalChatterboxOptions');
+    const omnivoiceOptions = document.getElementById('ttsModalOmniVoiceOptions');
     const gpuStatusDiv = document.getElementById('ttsModalGpuStatus');
     const copyInstallCommandBtn = document.getElementById('copyChatterboxInstallCommand');
+    const copyOmniVoiceInstallCommandBtn = document.getElementById('copyOmniVoiceInstallCommand');
+    const omnivoiceModeSelect = document.getElementById('ttsModalOmniVoiceMode');
+    const omnivoicePromptSelect = document.getElementById('ttsModalOmniVoicePrompt');
+    const omnivoiceRefAudioPath = document.getElementById('ttsModalOmniVoiceRefAudioPath');
 
     // Slider value updates
     const exaggerationSlider = document.getElementById('ttsModalExaggeration');
@@ -918,30 +1035,68 @@ async function showTTSModal(filename, filepath) {
         });
     }
 
+    const copyInstallCommand = async (providerKey, providerLabel) => {
+        const installCommand = providersInfo[providerKey]?.install?.install_command;
+        if (!installCommand) {
+            MessageLogger.showMessage(`No ${providerLabel} install command is available for this environment.`, 'error');
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(installCommand);
+            MessageLogger.showMessage(`${providerLabel} install command copied to clipboard.`, 'success');
+        } catch (error) {
+            MessageLogger.showMessage(`Failed to copy ${providerLabel} install command: ${error.message}`, 'error');
+        }
+    };
+
     if (copyInstallCommandBtn) {
         copyInstallCommandBtn.addEventListener('click', async () => {
-            const installCommand = providersInfo.chatterbox?.install?.install_command;
-            if (!installCommand) {
-                MessageLogger.showMessage('No Chatterbox install command is available for this environment.', 'error');
-                return;
-            }
+            await copyInstallCommand('chatterbox', 'Chatterbox');
+        });
+    }
 
-            try {
-                await navigator.clipboard.writeText(installCommand);
-                MessageLogger.showMessage('Chatterbox install command copied to clipboard.', 'success');
-            } catch (error) {
-                MessageLogger.showMessage(`Failed to copy Chatterbox install command: ${error.message}`, 'error');
-            }
+    if (copyOmniVoiceInstallCommandBtn) {
+        copyOmniVoiceInstallCommandBtn.addEventListener('click', async () => {
+            await copyInstallCommand('omnivoice', 'OmniVoice');
+        });
+    }
+
+    const updateOmniVoiceModalMode = () => {
+        const mode = omnivoiceModeSelect?.value || 'auto';
+        const instructGroup = document.getElementById('ttsModalOmniVoiceInstructGroup');
+        const cloneGroup = document.getElementById('ttsModalOmniVoiceCloneGroup');
+
+        if (instructGroup) {
+            instructGroup.style.display = mode === 'voice_design' ? 'block' : 'none';
+        }
+        if (cloneGroup) {
+            cloneGroup.style.display = mode === 'voice_cloning' ? 'block' : 'none';
+        }
+    };
+
+    if (omnivoiceModeSelect) {
+        omnivoiceModeSelect.addEventListener('change', updateOmniVoiceModalMode);
+    }
+
+    if (omnivoicePromptSelect && omnivoiceRefAudioPath) {
+        omnivoicePromptSelect.addEventListener('change', () => {
+            omnivoiceRefAudioPath.value = omnivoicePromptSelect.value || '';
         });
     }
 
     // Provider change handler
     providerSelect.addEventListener('change', () => {
         const isChatterbox = providerSelect.value === 'chatterbox';
-        edgeOptions.style.display = isChatterbox ? 'none' : 'block';
+        const isOmniVoice = providerSelect.value === 'omnivoice';
+        edgeOptions.style.display = (!isChatterbox && !isOmniVoice) ? 'block' : 'none';
         chatterboxOptions.style.display = isChatterbox ? 'block' : 'none';
-        gpuStatusDiv.style.display = isChatterbox ? 'block' : 'none';
+        omnivoiceOptions.style.display = isOmniVoice ? 'block' : 'none';
+        gpuStatusDiv.style.display = (isChatterbox || isOmniVoice) ? 'block' : 'none';
+        updateOmniVoiceModalMode();
     });
+
+    providerSelect.dispatchEvent(new Event('change'));
 
     // Close handlers
     const closeModal = () => modal.remove();
@@ -974,13 +1129,28 @@ async function showTTSModal(filename, filepath) {
             config.tts_rate = document.getElementById('ttsModalRate').value;
             config.tts_format = document.getElementById('ttsModalFormat').value;
             config.tts_bitrate = document.getElementById('ttsModalBitrate').value;
-        } else {
-            // Chatterbox
+        } else if (provider === 'chatterbox') {
             config.target_language = document.getElementById('ttsModalChatterboxLang').value;
             config.tts_voice_prompt_path = document.getElementById('ttsModalVoicePrompt').value;
             config.tts_exaggeration = parseFloat(document.getElementById('ttsModalExaggeration').value);
             config.tts_cfg_weight = parseFloat(document.getElementById('ttsModalCfgWeight').value);
             config.tts_format = document.getElementById('ttsModalChatterboxFormat').value;
+        } else if (provider === 'omnivoice') {
+            config.target_language = document.getElementById('ttsModalOmniVoiceLanguage').value;
+            config.tts_voice = '';
+            config.tts_format = document.getElementById('ttsModalOmniVoiceFormat').value;
+            config.tts_omnivoice_mode = document.getElementById('ttsModalOmniVoiceMode').value;
+            config.tts_omnivoice_instruct = document.getElementById('ttsModalOmniVoiceInstruct').value;
+            config.tts_omnivoice_ref_audio_path = document.getElementById('ttsModalOmniVoiceRefAudioPath').value;
+            config.tts_omnivoice_ref_text = document.getElementById('ttsModalOmniVoiceRefText').value;
+            config.tts_omnivoice_speed = parseFloat(document.getElementById('ttsModalOmniVoiceSpeed').value || '1.0');
+
+            const durationValue = document.getElementById('ttsModalOmniVoiceDuration').value;
+            if (durationValue) {
+                config.tts_omnivoice_duration = parseFloat(durationValue);
+            }
+
+            config.tts_omnivoice_num_step = parseInt(document.getElementById('ttsModalOmniVoiceNumStep').value || '32', 10);
         }
 
         // Disable button and show loading

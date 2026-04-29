@@ -289,14 +289,28 @@ def get_omnivoice_missing_dependencies() -> List[str]:
 def get_omnivoice_install_status() -> dict:
     """Return installation guidance for OmniVoice."""
     available = is_omnivoice_available()
+    is_container = Path('/.dockerenv').exists()
     missing = get_omnivoice_missing_dependencies()
-    return {
-        "available": available,
-        "install_method": "pip",
-        "install_command": "pip install torch torchaudio omnivoice",
-        "auto_install_error": None if available else (
+
+    if is_container:
+        install_method = "docker-build"
+        install_command = "INSTALL_OMNIVOICE=1 docker compose up -d --build"
+        auto_install_error = (
+            "OmniVoice must be baked into the Docker image. Rebuild and restart the service with INSTALL_OMNIVOICE=1."
+        )
+    else:
+        install_method = "pip"
+        install_command = "pip install torch torchaudio omnivoice"
+        auto_install_error = (
             "Install OmniVoice and its audio dependencies in this Python environment, "
             "then restart the application."
-        ),
+        )
+
+    return {
+        "available": available,
+        "is_container": is_container,
+        "install_method": install_method,
+        "install_command": install_command,
+        "auto_install_error": None if available else auto_install_error,
         "missing_dependencies": missing,
     }
