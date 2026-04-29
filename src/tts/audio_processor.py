@@ -18,6 +18,7 @@ from .tts_config import TTSConfig, get_voice_for_language
 from .providers.base import TTSProvider, TTSError, ProgressCallback
 from .providers.edge_tts import EdgeTTSProvider
 from .providers.chatterbox_tts import ChatterboxProvider, is_chatterbox_available, MAX_TEXT_LENGTH as CHATTERBOX_MAX_LENGTH
+from .providers.omnivoice import create_omnivoice_provider
 
 logger = logging.getLogger(__name__)
 
@@ -484,6 +485,7 @@ class AudioProcessor:
         self.config = config
         self.provider = provider or EdgeTTSProvider()
         self._temp_dir: Optional[Path] = None
+        self._intermediate_extension = self._get_intermediate_extension()
 
         # Adjust chunk size based on provider
         # Chatterbox has strict tokenizer limits
@@ -493,6 +495,24 @@ class AudioProcessor:
             logger.info(f"Using Chatterbox-optimized chunk size: {self._effective_chunk_size}")
         else:
             self._effective_chunk_size = config.chunk_size
+
+    def _get_intermediate_extension(self) -> str:
+        """Return the temp audio file extension used by the current provider."""
+        if isinstance(self.provider, EdgeTTSProvider):
+            return '.mp3'
+        return '.wav'
+
+    def _requires_ffmpeg(self, total_chunks: int) -> bool:
+        """Return True when final assembly/transcoding requires ffmpeg."""
+        output_format = self.config.output_format.lower()
+
+        if output_format == 'opus':
+            return True
+
+        if self._intermediate_extension == '.mp3':
+            return total_chunks > 1
+
+        return output_format != 'wav' or total_chunks > 1
 
     async def generate_audio(
         self,
@@ -516,20 +536,6 @@ class AudioProcessor:
         if not text.strip():
             return False, "No text provided for TTS generation"
 
-        # Determine voice
-        voice = self.config.get_effective_voice(language)
-        if not voice:
-            return False, f"Could not determine voice for language: {language}"
-
-        logger.info(f"Starting TTS generation with voice: {voice}")
-
-        # Check if we need opus encoding
-        needs_encoding = self.config.output_format.lower() == 'opus'
-        if needs_encoding:
-            ffmpeg_available, ffmpeg_message = check_ffmpeg_with_instructions()
-            if not ffmpeg_available:
-                return False, ffmpeg_message
-
         try:
             # Create temp directory for intermediate files
             self._temp_dir = Path(tempfile.mkdtemp(prefix="tts_"))
@@ -541,6 +547,21 @@ class AudioProcessor:
             if total_chunks == 0:
                 return False, "Text produced no chunks for synthesis"
 
+            # Determine voice
+            voice = self.config.get_effective_voice(language)
+            if getattr(self.provider, 'name', '') == 'omnivoice':
+                voice = self.config.voice or 'omnivoice'
+
+            if not voice:
+                return False, f"Could not determine voice for language: {language}"
+
+            logger.info(f"Starting TTS generation with voice: {voice}")
+
+            if self._requires_ffmpeg(total_chunks):
+                ffmpeg_available, ffmpeg_message = check_ffmpeg_with_instructions()
+                if not ffmpeg_available:
+                    return False, ffmpeg_message
+
             logger.info(f"Text split into {total_chunks} chunks")
 
             # Synthesize each chunk
@@ -551,7 +572,7 @@ class AudioProcessor:
                     progress_callback(i + 1, total_chunks, f"Synthesizing chunk {i + 1}/{total_chunks}")
 
                 # Generate temp file path for this chunk
-                temp_file = self._temp_dir / f"chunk_{i:04d}.mp3"
+                temp_file = self._temp_dir / f"chunk_{i:04d}{self._intermediate_extension}"
 
                 # Synthesize
                 result = await self.provider.synthesize_to_file(
@@ -572,8 +593,13 @@ class AudioProcessor:
             if progress_callback:
                 progress_callback(total_chunks, total_chunks, "Concatenating audio...")
 
-            if needs_encoding:
+            if self.config.output_format.lower() == 'opus':
                 success, message = await self._concatenate_and_encode_opus(
+                    temp_audio_files,
+                    output_path
+                )
+            elif self._intermediate_extension == '.wav':
+                success, message = await self._concatenate_audio_files(
                     temp_audio_files,
                     output_path
                 )
@@ -650,6 +676,75 @@ class AudioProcessor:
 
         except Exception as e:
             return False, f"MP3 concatenation failed: {e}"
+
+    def _get_ffmpeg_output_args(self) -> List[str]:
+        """Return ffmpeg codec arguments for the configured output format."""
+        output_format = self.config.output_format.lower()
+
+        if output_format == 'wav':
+            return ['-c:a', 'pcm_s16le']
+        if output_format == 'mp3':
+            return ['-c:a', 'libmp3lame', '-b:a', self.config.bitrate]
+        if output_format == 'opus':
+            return [
+                '-c:a', 'libopus',
+                '-b:a', self.config.bitrate,
+                '-ar', str(self.config.sample_rate),
+                '-ac', '1',
+                '-application', 'voip',
+            ]
+        if output_format == 'ogg':
+            return ['-c:a', 'libvorbis', '-b:a', self.config.bitrate]
+
+        raise ValueError(f"Unsupported audio output format: {self.config.output_format}")
+
+    async def _concatenate_audio_files(
+        self,
+        input_files: List[Path],
+        output_path: str
+    ) -> Tuple[bool, str]:
+        """
+        Concatenate or transcode non-MP3 intermediates into the final output format.
+
+        Supports WAV intermediates produced by local providers such as Chatterbox and OmniVoice.
+        """
+        try:
+            output_format = self.config.output_format.lower()
+
+            if len(input_files) == 1 and output_format == 'wav':
+                shutil.copy(input_files[0], output_path)
+                return True, "Audio saved successfully"
+
+            cmd = ['ffmpeg', '-y']
+
+            if len(input_files) == 1:
+                cmd.extend(['-i', str(input_files[0])])
+            else:
+                concat_file = self._temp_dir / "concat.txt"
+                with open(concat_file, 'w', encoding='utf-8') as f:
+                    for audio_file in input_files:
+                        escaped_path = str(audio_file).replace("'", "'\\''")
+                        f.write(f"file '{escaped_path}'\n")
+
+                cmd.extend(['-f', 'concat', '-safe', '0', '-i', str(concat_file)])
+
+            cmd.extend(self._get_ffmpeg_output_args())
+            cmd.append(output_path)
+
+            result = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            _, stderr = await result.communicate()
+
+            if result.returncode != 0:
+                return False, f"Audio concatenation failed: {stderr.decode()}"
+
+            return True, "Audio saved successfully"
+
+        except Exception as e:
+            return False, f"Audio concatenation failed: {e}"
 
     async def _concatenate_and_encode_opus(
         self,
@@ -743,10 +838,22 @@ def create_tts_provider(provider_name: str = "edge-tts", **kwargs) -> TTSProvide
             cfg_weight=kwargs.get('cfg_weight', 0.5)
         )
 
+    elif provider_name == "omnivoice":
+        return create_omnivoice_provider(
+            omnivoice_mode=kwargs.get('omnivoice_mode', 'auto'),
+            omnivoice_ref_audio_path=kwargs.get('omnivoice_ref_audio_path', ''),
+            omnivoice_ref_text=kwargs.get('omnivoice_ref_text', ''),
+            omnivoice_instruct=kwargs.get('omnivoice_instruct', ''),
+            omnivoice_speed=kwargs.get('omnivoice_speed', 1.0),
+            omnivoice_duration=kwargs.get('omnivoice_duration'),
+            omnivoice_num_step=kwargs.get('omnivoice_num_step', 32),
+        )
+
     else:
         supported = ["edge-tts"]
         if is_chatterbox_available():
             supported.append("chatterbox")
+        supported.append("omnivoice")
         raise ValueError(f"Unknown TTS provider: {provider_name}. Supported: {supported}")
 
 
@@ -778,7 +885,14 @@ async def generate_tts_for_text(
         config.provider,
         voice_prompt_path=config.voice_prompt_path,
         exaggeration=config.exaggeration,
-        cfg_weight=config.cfg_weight
+        cfg_weight=config.cfg_weight,
+        omnivoice_mode=config.omnivoice_mode,
+        omnivoice_ref_audio_path=config.omnivoice_ref_audio_path,
+        omnivoice_ref_text=config.omnivoice_ref_text,
+        omnivoice_instruct=config.omnivoice_instruct,
+        omnivoice_speed=config.omnivoice_speed,
+        omnivoice_duration=config.omnivoice_duration,
+        omnivoice_num_step=config.omnivoice_num_step,
     )
     processor = AudioProcessor(config, provider)
 

@@ -5,7 +5,7 @@ Provides centralized configuration for TTS generation including
 provider selection, voice settings, and audio encoding options.
 """
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Dict
 
 # Default voice mappings by language code
@@ -221,6 +221,16 @@ TTS_VOICE_PROMPT_PATH = os.getenv('TTS_VOICE_PROMPT_PATH', '')  # Audio file for
 TTS_EXAGGERATION = float(os.getenv('TTS_EXAGGERATION', '0.5'))  # Emotion level 0.0-1.0
 TTS_CFG_WEIGHT = float(os.getenv('TTS_CFG_WEIGHT', '0.5'))  # Classifier-free guidance weight
 
+# OmniVoice-specific settings (local multilingual TTS)
+TTS_OMNIVOICE_MODE = os.getenv('TTS_OMNIVOICE_MODE', 'auto')
+TTS_OMNIVOICE_REF_AUDIO_PATH = os.getenv('TTS_OMNIVOICE_REF_AUDIO_PATH', '')
+TTS_OMNIVOICE_REF_TEXT = os.getenv('TTS_OMNIVOICE_REF_TEXT', '')
+TTS_OMNIVOICE_INSTRUCT = os.getenv('TTS_OMNIVOICE_INSTRUCT', '')
+TTS_OMNIVOICE_SPEED = float(os.getenv('TTS_OMNIVOICE_SPEED', '1.0'))
+_omnivoice_duration = os.getenv('TTS_OMNIVOICE_DURATION', '').strip()
+TTS_OMNIVOICE_DURATION = float(_omnivoice_duration) if _omnivoice_duration else None
+TTS_OMNIVOICE_NUM_STEP = int(os.getenv('TTS_OMNIVOICE_NUM_STEP', '32'))
+
 # Chatterbox supported languages (23 languages)
 CHATTERBOX_VOICES: Dict[str, str] = {
     "en": "English",
@@ -291,6 +301,15 @@ class TTSConfig:
     exaggeration: float = TTS_EXAGGERATION
     cfg_weight: float = TTS_CFG_WEIGHT
 
+    # OmniVoice-specific settings
+    omnivoice_mode: str = TTS_OMNIVOICE_MODE
+    omnivoice_ref_audio_path: str = TTS_OMNIVOICE_REF_AUDIO_PATH
+    omnivoice_ref_text: str = TTS_OMNIVOICE_REF_TEXT
+    omnivoice_instruct: str = TTS_OMNIVOICE_INSTRUCT
+    omnivoice_speed: float = TTS_OMNIVOICE_SPEED
+    omnivoice_duration: Optional[float] = TTS_OMNIVOICE_DURATION
+    omnivoice_num_step: int = TTS_OMNIVOICE_NUM_STEP
+
     # Runtime settings (set during execution)
     target_language: str = ''
     output_path: Optional[str] = None
@@ -298,6 +317,7 @@ class TTSConfig:
     @classmethod
     def from_cli_args(cls, args) -> 'TTSConfig':
         """Create config from CLI arguments"""
+        omnivoice_duration = getattr(args, 'omnivoice_duration', None)
         config = cls(
             enabled=getattr(args, 'tts', False),
             provider=getattr(args, 'tts_provider', None) or TTS_PROVIDER,
@@ -309,6 +329,14 @@ class TTSConfig:
             voice_prompt_path=getattr(args, 'tts_voice_prompt', '') or TTS_VOICE_PROMPT_PATH,
             exaggeration=getattr(args, 'tts_exaggeration', None) or TTS_EXAGGERATION,
             cfg_weight=getattr(args, 'tts_cfg_weight', None) or TTS_CFG_WEIGHT,
+            # OmniVoice-specific
+            omnivoice_mode=getattr(args, 'omnivoice_mode', None) or TTS_OMNIVOICE_MODE,
+            omnivoice_ref_audio_path=getattr(args, 'omnivoice_ref_audio', '') or TTS_OMNIVOICE_REF_AUDIO_PATH,
+            omnivoice_ref_text=getattr(args, 'omnivoice_ref_text', '') or TTS_OMNIVOICE_REF_TEXT,
+            omnivoice_instruct=getattr(args, 'omnivoice_instruct', '') or TTS_OMNIVOICE_INSTRUCT,
+            omnivoice_speed=float(getattr(args, 'omnivoice_speed', TTS_OMNIVOICE_SPEED)),
+            omnivoice_duration=float(omnivoice_duration) if omnivoice_duration is not None else TTS_OMNIVOICE_DURATION,
+            omnivoice_num_step=int(getattr(args, 'omnivoice_num_step', TTS_OMNIVOICE_NUM_STEP)),
         )
         return config
 
@@ -320,6 +348,7 @@ class TTSConfig:
     @classmethod
     def from_web_request(cls, request_data: dict) -> 'TTSConfig':
         """Create config from web request data"""
+        omnivoice_duration = request_data.get('tts_omnivoice_duration', TTS_OMNIVOICE_DURATION)
         return cls(
             enabled=request_data.get('tts_enabled', False),
             provider=request_data.get('tts_provider', TTS_PROVIDER),
@@ -332,6 +361,14 @@ class TTSConfig:
             voice_prompt_path=request_data.get('tts_voice_prompt_path', '') or TTS_VOICE_PROMPT_PATH,
             exaggeration=float(request_data.get('tts_exaggeration', TTS_EXAGGERATION)),
             cfg_weight=float(request_data.get('tts_cfg_weight', TTS_CFG_WEIGHT)),
+            # OmniVoice-specific
+            omnivoice_mode=request_data.get('tts_omnivoice_mode', TTS_OMNIVOICE_MODE),
+            omnivoice_ref_audio_path=request_data.get('tts_omnivoice_ref_audio_path', '') or TTS_OMNIVOICE_REF_AUDIO_PATH,
+            omnivoice_ref_text=request_data.get('tts_omnivoice_ref_text', '') or TTS_OMNIVOICE_REF_TEXT,
+            omnivoice_instruct=request_data.get('tts_omnivoice_instruct', '') or TTS_OMNIVOICE_INSTRUCT,
+            omnivoice_speed=float(request_data.get('tts_omnivoice_speed', TTS_OMNIVOICE_SPEED)),
+            omnivoice_duration=float(omnivoice_duration) if omnivoice_duration not in (None, '') else None,
+            omnivoice_num_step=int(request_data.get('tts_omnivoice_num_step', TTS_OMNIVOICE_NUM_STEP)),
         )
 
     def get_effective_voice(self, language: str = '') -> str:
@@ -385,6 +422,14 @@ class TTSConfig:
             'voice_prompt_path': self.voice_prompt_path,
             'exaggeration': self.exaggeration,
             'cfg_weight': self.cfg_weight,
+            # OmniVoice-specific
+            'omnivoice_mode': self.omnivoice_mode,
+            'omnivoice_ref_audio_path': self.omnivoice_ref_audio_path,
+            'omnivoice_ref_text': self.omnivoice_ref_text,
+            'omnivoice_instruct': self.omnivoice_instruct,
+            'omnivoice_speed': self.omnivoice_speed,
+            'omnivoice_duration': self.omnivoice_duration,
+            'omnivoice_num_step': self.omnivoice_num_step,
         }
 
     def get_chatterbox_voice(self, language: str = '') -> str:

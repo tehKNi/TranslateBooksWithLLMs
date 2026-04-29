@@ -426,6 +426,175 @@
                     </div>
                 </div>
 
+                <!-- TTS Options -->
+                <div class="form-group" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-light);">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="ttsEnabled">
+                        <div>
+                            <span style="font-weight: 600; color: var(--text-dark);">Generate Audio (TTS)</span>
+                            <p style="margin: 5px 0 0 0; font-size: 0.8125rem; color: var(--text-muted-light);">
+                                Generate an audio version of the translated file after the translation completes.
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
+                <div id="ttsOptions" style="display: none; margin-top: 15px; padding: 18px; border: 1px solid var(--border-light); border-radius: 1.25rem; background: var(--bg-light);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="ttsProvider">TTS Provider</label>
+                            <div class="neu-inset-light">
+                                <select class="form-control" id="ttsProvider">
+                                    <option value="edge-tts">Edge TTS</option>
+                                    <option value="chatterbox">Chatterbox TTS</option>
+                                    <option value="omnivoice">OmniVoice</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="ttsFormat">Audio Format</label>
+                            <div class="neu-inset-light">
+                                <select class="form-control" id="ttsFormat">
+                                    <option value="opus">Opus</option>
+                                    <option value="mp3">MP3</option>
+                                    <option value="wav">WAV</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="ttsVoice">Voice (auto-select if empty)</label>
+                            <div class="neu-inset-light">
+                                <input type="text" class="form-control" id="ttsVoice" placeholder="e.g., zh-CN-XiaoxiaoNeural">
+                            </div>
+                            <small id="ttsVoiceHelp" style="color: var(--text-muted-light); font-size: 0.75rem; margin-top: 0.5rem; display: block;">
+                                Leave empty for auto-selection based on target language
+                            </small>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="ttsBitrate">Bitrate</label>
+                            <div class="neu-inset-light">
+                                <input type="text" class="form-control" id="ttsBitrate" value="64k" placeholder="64k">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="edgeTTSOptions" style="display: block;">
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label for="ttsRate">Speech Rate</label>
+                            <div class="neu-inset-light">
+                                <input type="text" class="form-control" id="ttsRate" value="+0%" placeholder="+0%">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="chatterboxOptions" style="display: none;">
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label for="ttsExaggeration">Emotion / Exaggeration</label>
+                            <div class="neu-inset-light" style="padding: 12px;">
+                                <input type="range" id="ttsExaggeration" min="0" max="1" step="0.05" value="0.5" style="width: 100%;">
+                                <div style="margin-top: 8px; font-size: 0.8125rem; color: var(--text-muted-light);">Current value: <span id="exaggerationValue">0.50</span></div>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label for="ttsCfgWeight">CFG Weight</label>
+                            <div class="neu-inset-light" style="padding: 12px;">
+                                <input type="range" id="ttsCfgWeight" min="0" max="1" step="0.05" value="0.5" style="width: 100%;">
+                                <div style="margin-top: 8px; font-size: 0.8125rem; color: var(--text-muted-light);">Current value: <span id="cfgWeightValue">0.50</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="omnivoiceOptions" style="display: none;">
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label for="omnivoiceMode">OmniVoice Mode</label>
+                            <div class="neu-inset-light">
+                                <select class="form-control" id="omnivoiceMode">
+                                    <option value="auto">Auto Voice</option>
+                                    <option value="voice_design">Voice Design</option>
+                                    <option value="voice_cloning">Voice Cloning</option>
+                                </select>
+                            </div>
+                            <small id="omnivoiceModeHelp" style="color: var(--text-muted-light); font-size: 0.75rem; margin-top: 0.5rem; display: block;">
+                                Let OmniVoice choose a voice automatically, design one from text, or clone from a reference recording.
+                            </small>
+                        </div>
+
+                        <div id="omnivoiceInstructGroup" class="form-group" style="display: none; margin-bottom: 15px;">
+                            <label for="omnivoiceInstruct">Voice Design Prompt</label>
+                            <div class="neu-inset-light">
+                                <input type="text" class="form-control" id="omnivoiceInstruct" placeholder="e.g., female, low pitch, british accent">
+                            </div>
+                        </div>
+
+                        <div id="omnivoiceRefTextGroup" class="form-group" style="display: none; margin-bottom: 15px;">
+                            <label for="omnivoiceRefText">Reference Transcript (optional)</label>
+                            <div class="neu-inset-light">
+                                <input type="text" class="form-control" id="omnivoiceRefText" placeholder="Optional transcript of the reference audio">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="omnivoiceSpeed">Speed</label>
+                                <div class="neu-inset-light">
+                                    <input type="number" class="form-control" id="omnivoiceSpeed" value="1.0" step="0.05" min="0.25">
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="omnivoiceDuration">Duration (s)</label>
+                                <div class="neu-inset-light">
+                                    <input type="number" class="form-control" id="omnivoiceDuration" placeholder="Optional" step="0.1" min="0">
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="omnivoiceNumStep">Diffusion Steps</label>
+                                <div class="neu-inset-light">
+                                    <input type="number" class="form-control" id="omnivoiceNumStep" value="32" step="1" min="1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="voiceCloneOptions" style="display: none; margin-top: 15px;">
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label for="voicePromptSelect">Reference Audio</label>
+                            <div class="neu-inset-light">
+                                <select class="form-control" id="voicePromptSelect">
+                                    <option value="">Use uploaded audio prompt...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label for="omnivoiceRefAudioPath">Selected Reference Path</label>
+                            <div class="neu-inset-light">
+                                <input type="text" class="form-control" id="omnivoiceRefAudioPath" readonly placeholder="Select or upload a reference audio file">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="voicePromptInput">Upload Reference Audio</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input type="file" id="voicePromptInput" accept=".wav,.mp3,.flac,.ogg,.m4a" style="flex: 1;">
+                                <button type="button" id="uploadVoicePromptBtn" class="btn btn-secondary">Upload</button>
+                                <span id="voicePromptUploadStatus" style="font-size: 0.8125rem; color: var(--text-muted-light);"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="gpuStatusSection" style="display: none; margin-top: 15px; padding: 12px; border-radius: 0.875rem; background: rgba(34, 197, 94, 0.08); border: 1px solid var(--border-light);">
+                        <div id="gpuStatusIndicator" class="gpu-status gpu-unavailable" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                            <span id="gpuStatusDot" class="status-dot unavailable"></span>
+                            <strong>Local GPU Status</strong>
+                        </div>
+                        <div style="font-size: 0.8125rem; color: var(--text-muted-light);">
+                            <div><strong>Device:</strong> <span id="gpuName">Checking...</span></div>
+                            <div><strong>VRAM:</strong> <span id="gpuVram">N/A</span></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- File Info Section (Batch Files) -->
                 <div id="fileInfo" class="hidden" style="margin-bottom: 20px; margin-top: 20px;">
                     <h4 style="color: var(--text-dark); font-weight: 700; margin-bottom: 1rem;">Selected Files:</h4>

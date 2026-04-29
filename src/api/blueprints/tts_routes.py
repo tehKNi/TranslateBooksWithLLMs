@@ -4,6 +4,7 @@ TTS (Text-to-Speech) routes for generating audio from existing files
 Supports multiple TTS providers:
 - edge-tts: Microsoft Edge neural voices (cloud-based)
 - chatterbox: ResembleAI's local GPU-accelerated TTS with voice cloning
+- omnivoice: local multilingual TTS with auto voice, voice design, and voice cloning
 """
 import os
 import asyncio
@@ -20,6 +21,8 @@ from src.tts.providers import (
     get_chatterbox_install_status,
     get_gpu_status,
     CHATTERBOX_LANGUAGES,
+    is_omnivoice_available,
+    get_omnivoice_install_status,
 )
 from src.tts.audio_processor import get_ffmpeg_status, install_ffmpeg as install_ffmpeg_auto
 from src.utils.file_utils import generate_tts_for_translation
@@ -196,7 +199,7 @@ def create_tts_blueprint(output_dir, socketio):
         {
             "filename": "translated_book.epub",
             "target_language": "Chinese",
-            "tts_provider": "edge-tts",  // or "chatterbox"
+            "tts_provider": "edge-tts",  // or "chatterbox" / "omnivoice"
             "tts_voice": "",  // Optional, auto-select if empty
             "tts_rate": "+0%",
             "tts_format": "opus",
@@ -237,6 +240,15 @@ def create_tts_blueprint(output_dir, socketio):
                     "install": install_status,
                 }), 400
 
+            if provider == 'omnivoice' and not is_omnivoice_available():
+                install_status = get_omnivoice_install_status()
+                return jsonify({
+                    "error": "OmniVoice TTS is not available",
+                    "details": "Missing dependencies: omnivoice runtime is not installed in this Python environment. "
+                               "Install with: pip install torch torchaudio omnivoice",
+                    "install": install_status,
+                }), 400
+
             tts_config = TTSConfig(
                 enabled=True,
                 provider=provider,
@@ -251,6 +263,14 @@ def create_tts_blueprint(output_dir, socketio):
                 voice_prompt_path=data.get('tts_voice_prompt_path', ''),
                 exaggeration=float(data.get('tts_exaggeration', 0.5)),
                 cfg_weight=float(data.get('tts_cfg_weight', 0.5)),
+                # OmniVoice-specific settings
+                omnivoice_mode=data.get('tts_omnivoice_mode', 'auto'),
+                omnivoice_ref_audio_path=data.get('tts_omnivoice_ref_audio_path', ''),
+                omnivoice_ref_text=data.get('tts_omnivoice_ref_text', ''),
+                omnivoice_instruct=data.get('tts_omnivoice_instruct', ''),
+                omnivoice_speed=float(data.get('tts_omnivoice_speed', 1.0)),
+                omnivoice_duration=float(data.get('tts_omnivoice_duration')) if data.get('tts_omnivoice_duration') not in (None, '') else None,
+                omnivoice_num_step=int(data.get('tts_omnivoice_num_step', 32)),
             )
 
             # Generate job ID
@@ -338,6 +358,28 @@ def create_tts_blueprint(output_dir, socketio):
             "install": install_status,
         })
 
+    @bp.route('/api/tts/voices/omnivoice', methods=['GET'])
+    def list_omnivoice_modes():
+        """List OmniVoice capabilities and installation status."""
+        install_status = get_omnivoice_install_status()
+
+        return jsonify({
+            "available": install_status["available"],
+            "provider": "omnivoice",
+            "modes": ["auto", "voice_design", "voice_cloning"],
+            "features": {
+                "voice_selection": False,
+                "voice_design": True,
+                "voice_cloning": True,
+                "rate_control": False,
+                "volume_control": False,
+                "pitch_control": False,
+                "gpu_acceleration": True,
+            },
+            "note": "Voice is generated automatically, from a text instruction, or from a reference audio prompt.",
+            "install": install_status,
+        })
+
     @bp.route('/api/tts/providers', methods=['GET'])
     def list_providers():
         """
@@ -347,6 +389,7 @@ def create_tts_blueprint(output_dir, socketio):
             JSON with provider information and availability
         """
         chatterbox_status = get_chatterbox_install_status()
+        omnivoice_status = get_omnivoice_install_status()
 
         providers = {
             "edge-tts": {
@@ -378,6 +421,22 @@ def create_tts_blueprint(output_dir, socketio):
                 },
                 "language_count": len(CHATTERBOX_LANGUAGES),
                 "install": chatterbox_status,
+            },
+            "omnivoice": {
+                "name": "OmniVoice",
+                "description": "Local multilingual TTS with auto voice, voice design, and voice cloning",
+                "available": omnivoice_status["available"],
+                "features": {
+                    "voice_selection": False,
+                    "rate_control": False,
+                    "volume_control": False,
+                    "pitch_control": False,
+                    "voice_cloning": True,
+                    "voice_design": True,
+                    "gpu_required": True,
+                },
+                "language_count": 600,
+                "install": omnivoice_status,
             }
         }
 
