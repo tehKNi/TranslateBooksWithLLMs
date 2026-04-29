@@ -1,7 +1,7 @@
 /**
  * TTS Manager - Manages Text-to-Speech provider selection and configuration
  *
- * Handles provider switching between Edge-TTS and Chatterbox TTS,
+ * Handles provider switching between Edge-TTS, Chatterbox, and OmniVoice,
  * voice prompt uploads for voice cloning, and GPU status display.
  */
 
@@ -47,6 +47,10 @@ export const TTSManager = {
         // Load available voice prompts
         await this.loadVoicePrompts();
 
+        // Sync UI with current form state
+        this.onTTSEnabledChange();
+        this.onProviderChange();
+
         TTSState.isInitialized = true;
         console.log('TTS Manager initialized');
     },
@@ -67,10 +71,25 @@ export const TTSManager = {
             ttsProvider.addEventListener('change', () => this.onProviderChange());
         }
 
+        const omnivoiceMode = DomHelpers.getElement('omnivoiceMode');
+        if (omnivoiceMode) {
+            omnivoiceMode.addEventListener('change', () => this.onOmniVoiceModeChange());
+        }
+
         // Voice prompt file input
         const voicePromptInput = DomHelpers.getElement('voicePromptInput');
         if (voicePromptInput) {
             voicePromptInput.addEventListener('change', (e) => this.onVoicePromptUpload(e));
+        }
+
+        const voicePromptSelect = DomHelpers.getElement('voicePromptSelect');
+        if (voicePromptSelect) {
+            voicePromptSelect.addEventListener('change', () => this.syncReferenceAudioPath());
+        }
+
+        const uploadVoicePromptBtn = DomHelpers.getElement('uploadVoicePromptBtn');
+        if (uploadVoicePromptBtn && voicePromptInput) {
+            uploadVoicePromptBtn.addEventListener('click', () => voicePromptInput.click());
         }
 
         // Exaggeration slider
@@ -110,6 +129,7 @@ export const TTSManager = {
                 ttsOptions.style.display = 'block';
                 // Refresh GPU status when TTS is enabled
                 this.loadGPUStatus();
+                this.onProviderChange();
             } else {
                 ttsOptions.style.display = 'none';
             }
@@ -131,8 +151,16 @@ export const TTSManager = {
 
         // Update voice selector
         this.updateVoiceSelector(selectedProvider);
+        this.onOmniVoiceModeChange();
 
         MessageLogger.addLog(`TTS provider changed to: ${selectedProvider}`);
+    },
+
+    /**
+     * Handle OmniVoice mode changes.
+     */
+    onOmniVoiceModeChange() {
+        this.updateOmniVoiceModeOptions();
     },
 
     /**
@@ -144,16 +172,24 @@ export const TTSManager = {
         const edgeTTSOptions = DomHelpers.getElement('edgeTTSOptions');
         // Chatterbox options
         const chatterboxOptions = DomHelpers.getElement('chatterboxOptions');
+        // OmniVoice options
+        const omnivoiceOptions = DomHelpers.getElement('omnivoiceOptions');
+        // Shared voice cloning controls
+        const voiceCloneOptions = DomHelpers.getElement('voiceCloneOptions');
         // GPU status
         const gpuStatusSection = DomHelpers.getElement('gpuStatusSection');
 
         if (provider === 'edge-tts') {
             if (edgeTTSOptions) edgeTTSOptions.style.display = 'block';
             if (chatterboxOptions) chatterboxOptions.style.display = 'none';
+            if (omnivoiceOptions) omnivoiceOptions.style.display = 'none';
+            if (voiceCloneOptions) voiceCloneOptions.style.display = 'none';
             if (gpuStatusSection) gpuStatusSection.style.display = 'none';
         } else if (provider === 'chatterbox') {
             if (edgeTTSOptions) edgeTTSOptions.style.display = 'none';
             if (chatterboxOptions) chatterboxOptions.style.display = 'block';
+            if (omnivoiceOptions) omnivoiceOptions.style.display = 'none';
+            if (voiceCloneOptions) voiceCloneOptions.style.display = 'block';
             if (gpuStatusSection) gpuStatusSection.style.display = 'block';
 
             // Check if Chatterbox is available
@@ -164,7 +200,22 @@ export const TTSManager = {
                     'error'
                 );
             }
+        } else if (provider === 'omnivoice') {
+            if (edgeTTSOptions) edgeTTSOptions.style.display = 'none';
+            if (chatterboxOptions) chatterboxOptions.style.display = 'none';
+            if (omnivoiceOptions) omnivoiceOptions.style.display = 'block';
+            if (gpuStatusSection) gpuStatusSection.style.display = 'block';
+
+            const providerInfo = TTSState.providers['omnivoice'];
+            if (providerInfo && !providerInfo.available) {
+                MessageLogger.showMessage(
+                    'OmniVoice is not available. Please install: pip install torch torchaudio omnivoice',
+                    'error'
+                );
+            }
         }
+
+        this.updateOmniVoiceModeOptions();
     },
 
     /**
@@ -199,6 +250,43 @@ export const TTSManager = {
             if (voiceHelp) {
                 voiceHelp.textContent = 'Upload a voice prompt audio file for voice cloning';
             }
+        } else if (provider === 'omnivoice') {
+            if (voiceInput) {
+                voiceInput.placeholder = 'Managed by OmniVoice mode';
+                voiceInput.disabled = true;
+                voiceInput.value = '';
+            }
+            if (voiceLabel) {
+                voiceLabel.textContent = 'Voice (OmniVoice managed)';
+            }
+            if (voiceHelp) {
+                voiceHelp.textContent = 'Use Auto Voice, Voice Design, or Voice Cloning below';
+            }
+        }
+    },
+
+    /**
+     * Update OmniVoice mode-specific controls.
+     */
+    updateOmniVoiceModeOptions() {
+        const provider = DomHelpers.getValue('ttsProvider') || 'edge-tts';
+        const mode = DomHelpers.getValue('omnivoiceMode') || 'auto';
+        const instructGroup = DomHelpers.getElement('omnivoiceInstructGroup');
+        const refTextGroup = DomHelpers.getElement('omnivoiceRefTextGroup');
+        const voiceCloneOptions = DomHelpers.getElement('voiceCloneOptions');
+
+        if (provider === 'omnivoice') {
+            if (instructGroup) {
+                instructGroup.style.display = mode === 'voice_design' ? 'block' : 'none';
+            }
+            if (refTextGroup) {
+                refTextGroup.style.display = mode === 'voice_cloning' ? 'block' : 'none';
+            }
+            if (voiceCloneOptions) {
+                voiceCloneOptions.style.display = mode === 'voice_cloning' ? 'block' : 'none';
+            }
+        } else if (provider !== 'chatterbox' && voiceCloneOptions) {
+            voiceCloneOptions.style.display = 'none';
         }
     },
 
@@ -237,6 +325,18 @@ export const TTSManager = {
             } else {
                 chatterboxOption.textContent = 'Chatterbox TTS (Local GPU)';
                 chatterboxOption.disabled = false;
+            }
+        }
+
+        const omnivoiceOption = providerSelect.querySelector('option[value="omnivoice"]');
+        if (omnivoiceOption) {
+            const isAvailable = TTSState.providers['omnivoice']?.available;
+            if (!isAvailable) {
+                omnivoiceOption.textContent = 'OmniVoice (Not Available)';
+                omnivoiceOption.disabled = true;
+            } else {
+                omnivoiceOption.textContent = 'OmniVoice';
+                omnivoiceOption.disabled = false;
             }
         }
     },
@@ -336,6 +436,19 @@ export const TTSManager = {
             option.textContent = prompt.filename;
             dropdown.appendChild(option);
         });
+
+        this.syncReferenceAudioPath();
+    },
+
+    /**
+     * Mirror the selected shared prompt path into the OmniVoice field.
+     */
+    syncReferenceAudioPath() {
+        const dropdown = DomHelpers.getElement('voicePromptSelect');
+        const field = DomHelpers.getElement('omnivoiceRefAudioPath');
+        if (dropdown && field) {
+            field.value = dropdown.value || '';
+        }
     },
 
     /**
@@ -372,6 +485,7 @@ export const TTSManager = {
                 if (dropdown) {
                     dropdown.value = result.path;
                 }
+                this.syncReferenceAudioPath();
 
                 if (statusSpan) {
                     statusSpan.textContent = 'Uploaded!';
@@ -438,6 +552,22 @@ export const TTSManager = {
             config.tts_voice_prompt_path = DomHelpers.getValue('voicePromptSelect') || '';
             config.tts_exaggeration = parseFloat(DomHelpers.getValue('ttsExaggeration') || '0.5');
             config.tts_cfg_weight = parseFloat(DomHelpers.getValue('ttsCfgWeight') || '0.5');
+        }
+
+        if (provider === 'omnivoice') {
+            config.tts_voice = '';
+            config.tts_omnivoice_mode = DomHelpers.getValue('omnivoiceMode') || 'auto';
+            config.tts_omnivoice_instruct = DomHelpers.getValue('omnivoiceInstruct') || '';
+            config.tts_omnivoice_ref_audio_path = DomHelpers.getValue('omnivoiceRefAudioPath') || DomHelpers.getValue('voicePromptSelect') || '';
+            config.tts_omnivoice_ref_text = DomHelpers.getValue('omnivoiceRefText') || '';
+            config.tts_omnivoice_speed = parseFloat(DomHelpers.getValue('omnivoiceSpeed') || '1.0');
+
+            const durationValue = DomHelpers.getValue('omnivoiceDuration');
+            if (durationValue) {
+                config.tts_omnivoice_duration = parseFloat(durationValue);
+            }
+
+            config.tts_omnivoice_num_step = parseInt(DomHelpers.getValue('omnivoiceNumStep') || '32', 10);
         }
 
         return config;

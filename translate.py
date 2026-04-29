@@ -1,24 +1,53 @@
 """
-Command-line interface for text translation
+Command-line interface for text translation.
 """
-import os
+
 import argparse
 import asyncio
 import logging
+import os
+import uuid
 
 # Reduce verbosity of httpx (avoid showing 400 errors during model detection)
 logging.getLogger('httpx').setLevel(logging.WARNING)
 
-from src.config import DEFAULT_MODEL, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY, DEEPSEEK_API_KEY, POE_API_KEY, NIM_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
-from src.utils.file_utils import get_unique_output_path, generate_tts_for_translation
-from src.utils.unified_logger import setup_cli_logger, LogType
-from src.tts.tts_config import TTSConfig, TTS_ENABLED, TTS_VOICE, TTS_RATE, TTS_BITRATE, TTS_OUTPUT_FORMAT
-from src.persistence.checkpoint_manager import CheckpointManager
-from src.core.adapters import translate_file
-import uuid
+from src.config import (  # noqa: E402
+    API_ENDPOINT,
+    DEFAULT_MODEL,
+    DEFAULT_SOURCE_LANGUAGE,
+    DEFAULT_TARGET_LANGUAGE,
+    DEEPSEEK_API_KEY,
+    GEMINI_API_KEY,
+    LLM_PROVIDER,
+    MISTRAL_API_KEY,
+    NIM_API_KEY,
+    OPENAI_API_KEY,
+    OPENROUTER_API_KEY,
+    POE_API_KEY,
+)
+from src.persistence.checkpoint_manager import CheckpointManager  # noqa: E402
+from src.core.adapters import translate_file  # noqa: E402
+from src.tts.tts_config import (  # noqa: E402
+    TTS_BITRATE,
+    TTS_ENABLED,
+    TTS_OUTPUT_FORMAT,
+    TTS_PROVIDER,
+    TTS_RATE,
+    TTS_VOICE,
+    TTSConfig,
+)
+from src.tts.providers import (  # noqa: E402
+    get_chatterbox_install_status,
+    get_omnivoice_install_status,
+    is_chatterbox_available,
+    is_omnivoice_available,
+)
+from src.utils.file_utils import generate_tts_for_translation, get_unique_output_path  # noqa: E402
+from src.utils.unified_logger import LogType, setup_cli_logger  # noqa: E402
 
 
-if __name__ == "__main__":
+def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(description="Translate a text, EPUB or SRT file using an LLM.")
     parser.add_argument("-i", "--input", required=True, help="Path to the input file (text, EPUB, or SRT).")
     parser.add_argument("-o", "--output", default=None, help="Path to the output file. If not specified, uses input filename with suffix.")
@@ -36,66 +65,34 @@ if __name__ == "__main__":
     parser.add_argument("--nim_api_key", default=NIM_API_KEY, help="NVIDIA NIM API key (required if using nim provider). Get your key at https://build.nvidia.com/")
     parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
 
-    # Prompt options (optional system prompt instructions)
     prompt_group = parser.add_argument_group('Prompt Options', 'Optional instructions to include in the translation prompt')
     prompt_group.add_argument("--text-cleanup", action="store_true", help="Enable OCR/typographic cleanup (fix broken lines, spacing, punctuation).")
     prompt_group.add_argument("--refine", action="store_true", help="Enable refinement pass: runs a second pass to polish translation quality and literary style.")
 
-    # TTS (Text-to-Speech) arguments
     tts_group = parser.add_argument_group('TTS Options', 'Text-to-Speech audio generation')
-    tts_group.add_argument("--tts", action="store_true", default=TTS_ENABLED, help="Generate audio from translated text using Edge-TTS.")
+    tts_group.add_argument("--tts", action="store_true", default=TTS_ENABLED, help="Generate audio from translated text using the selected TTS provider.")
+    tts_group.add_argument("--tts-provider", default=TTS_PROVIDER, choices=["edge-tts", "chatterbox", "omnivoice"], help=f"TTS provider (default: {TTS_PROVIDER}).")
     tts_group.add_argument("--tts-voice", default=TTS_VOICE, help="TTS voice name (auto-selected based on target language if not specified).")
     tts_group.add_argument("--tts-rate", default=TTS_RATE, help="TTS speech rate adjustment, e.g. '+10%%' or '-20%%' (default: %(default)s).")
     tts_group.add_argument("--tts-bitrate", default=TTS_BITRATE, help="Audio bitrate for encoding, e.g. '64k', '96k' (default: %(default)s).")
-    tts_group.add_argument("--tts-format", default=TTS_OUTPUT_FORMAT, choices=["opus", "mp3"], help="Audio output format (default: %(default)s).")
+    tts_group.add_argument("--tts-format", default=TTS_OUTPUT_FORMAT, choices=["opus", "mp3", "wav"], help="Audio output format (default: %(default)s).")
 
-    args = parser.parse_args()
+    omnivoice_group = parser.add_argument_group('OmniVoice Options', 'Options specific to the OmniVoice TTS provider')
+    omnivoice_group.add_argument("--omnivoice-mode", default="auto", choices=["auto", "voice_design", "voice_cloning"], help="OmniVoice generation mode.")
+    omnivoice_group.add_argument("--omnivoice-instruct", default="", help="Text instruction for OmniVoice voice design mode.")
+    omnivoice_group.add_argument("--omnivoice-ref-audio", default="", help="Reference audio path for OmniVoice voice cloning mode.")
+    omnivoice_group.add_argument("--omnivoice-ref-text", default="", help="Optional transcript for the OmniVoice reference audio.")
+    omnivoice_group.add_argument("--omnivoice-speed", default=1.0, type=float, help="OmniVoice speed factor (default: %(default)s).")
+    omnivoice_group.add_argument("--omnivoice-duration", default=None, type=float, help="Optional fixed output duration in seconds.")
+    omnivoice_group.add_argument("--omnivoice-num-step", default=32, type=int, help="OmniVoice diffusion steps (default: %(default)s).")
 
-    # Auto-select default model based on provider if not explicitly set
-    from src.config import NIM_MODEL, MISTRAL_MODEL, DEEPSEEK_MODEL, POE_MODEL, OPENROUTER_MODEL, GEMINI_MODEL
-    if args.model == DEFAULT_MODEL:
-        if args.provider == "nim" and NIM_MODEL:
-            args.model = NIM_MODEL
-        elif args.provider == "mistral" and MISTRAL_MODEL:
-            args.model = MISTRAL_MODEL
-        elif args.provider == "deepseek" and DEEPSEEK_MODEL:
-            args.model = DEEPSEEK_MODEL
-        elif args.provider == "poe" and POE_MODEL:
-            args.model = POE_MODEL
-        elif args.provider == "openrouter" and OPENROUTER_MODEL:
-            args.model = OPENROUTER_MODEL
-        elif args.provider == "gemini" and GEMINI_MODEL:
-            args.model = GEMINI_MODEL
+    return parser
 
-    if args.output is None:
-        base, ext = os.path.splitext(args.input)
-        output_ext = ext
-        if args.input.lower().endswith('.epub'):
-            output_ext = '.epub'
-        elif args.input.lower().endswith('.srt'):
-            output_ext = '.srt'
-        # Use parentheses format: {originalName} ({target_lang}).{ext}
-        args.output = f"{base} ({args.target_lang}){output_ext}"
 
-    # Ensure output path is unique (add number suffix if file exists)
-    args.output = get_unique_output_path(args.output)
-
-    # Determine file type
-    if args.input.lower().endswith('.epub'):
-        file_type = "EPUB"
-    elif args.input.lower().endswith('.srt'):
-        file_type = "SRT"
-    else:
-        file_type = "TEXT"
-    
-    # Setup unified logger
-    logger = setup_cli_logger(enable_colors=not args.no_color)
-    
-    # Validate API keys for providers
+def validate_cli_args(parser: argparse.ArgumentParser, args) -> None:
+    """Validate provider-specific CLI requirements."""
     if args.provider == "gemini" and not args.gemini_api_key:
         parser.error("--gemini_api_key is required when using gemini provider")
-    # Note: OpenAI API key is optional for local servers (llama.cpp, LM Studio, vLLM, etc.)
-    # Only required for OpenAI cloud API
     if args.provider == "openrouter" and not args.openrouter_api_key:
         parser.error("--openrouter_api_key is required when using openrouter provider")
     if args.provider == "mistral" and not args.mistral_api_key:
@@ -107,7 +104,89 @@ if __name__ == "__main__":
     if args.provider == "nim" and not args.nim_api_key:
         parser.error("--nim_api_key is required when using nim provider. Get your key at https://build.nvidia.com/")
 
-    # Log translation start
+    if not args.tts:
+        return
+
+    if args.tts_provider == "chatterbox" and not is_chatterbox_available():
+        install_status = get_chatterbox_install_status()
+        parser.error(
+            "Chatterbox TTS is not available. "
+            f"Missing dependencies: {', '.join(install_status.get('missing_dependencies', []))}. "
+            f"Install with: {install_status.get('install_command')}"
+        )
+
+    if args.tts_provider == "omnivoice":
+        if not is_omnivoice_available():
+            install_status = get_omnivoice_install_status()
+            parser.error(
+                "OmniVoice TTS is not available. "
+                f"Missing dependencies: {', '.join(install_status.get('missing_dependencies', []))}. "
+                f"Install with: {install_status.get('install_command')}"
+            )
+
+        if args.omnivoice_mode == "voice_design" and not args.omnivoice_instruct.strip():
+            parser.error("--omnivoice-instruct is required when --omnivoice-mode voice_design is selected")
+
+        if args.omnivoice_mode == "voice_cloning" and not args.omnivoice_ref_audio:
+            parser.error("--omnivoice-ref-audio is required when --omnivoice-mode voice_cloning is selected")
+
+
+def _apply_default_model(args) -> None:
+    """Auto-select provider-specific default model when needed."""
+    from src.config import DEEPSEEK_MODEL, GEMINI_MODEL, MISTRAL_MODEL, NIM_MODEL, OPENROUTER_MODEL, POE_MODEL
+
+    if args.model != DEFAULT_MODEL:
+        return
+
+    if args.provider == "nim" and NIM_MODEL:
+        args.model = NIM_MODEL
+    elif args.provider == "mistral" and MISTRAL_MODEL:
+        args.model = MISTRAL_MODEL
+    elif args.provider == "deepseek" and DEEPSEEK_MODEL:
+        args.model = DEEPSEEK_MODEL
+    elif args.provider == "poe" and POE_MODEL:
+        args.model = POE_MODEL
+    elif args.provider == "openrouter" and OPENROUTER_MODEL:
+        args.model = OPENROUTER_MODEL
+    elif args.provider == "gemini" and GEMINI_MODEL:
+        args.model = GEMINI_MODEL
+
+
+def _prepare_output_path(args) -> None:
+    """Compute the default output path when the user did not provide one."""
+    if args.output is None:
+        base, ext = os.path.splitext(args.input)
+        output_ext = ext
+        if args.input.lower().endswith('.epub'):
+            output_ext = '.epub'
+        elif args.input.lower().endswith('.srt'):
+            output_ext = '.srt'
+        args.output = f"{base} ({args.target_lang}){output_ext}"
+
+    args.output = get_unique_output_path(args.output)
+
+
+def _get_file_type(input_path: str) -> str:
+    """Return the translation file type label for logging."""
+    if input_path.lower().endswith('.epub'):
+        return "EPUB"
+    if input_path.lower().endswith('.srt'):
+        return "SRT"
+    return "TEXT"
+
+
+def main(argv=None) -> None:
+    """CLI entry point."""
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    _apply_default_model(args)
+    _prepare_output_path(args)
+    validate_cli_args(parser, args)
+
+    file_type = _get_file_type(args.input)
+    logger = setup_cli_logger(enable_colors=not args.no_color)
+
     logger.info("Translation Started", LogType.TRANSLATION_START, {
         'source_lang': args.source_lang,
         'target_lang': args.target_lang,
@@ -119,18 +198,14 @@ if __name__ == "__main__":
         'llm_provider': args.provider
     })
 
-    # Create legacy callback for backward compatibility
     log_callback = logger.create_legacy_callback()
 
-    # Create stats callback to update logger progress
     def stats_callback(stats: dict):
         completed = stats.get('completed_chunks', 0)
         total = stats.get('total_chunks', 0)
         if total > 0:
             logger.update_progress(completed, total)
 
-    # Build prompt_options from CLI arguments
-    # Technical content protection is now always enabled
     prompt_options = {
         'preserve_technical_content': True,
         'text_cleanup': args.text_cleanup,
@@ -138,13 +213,9 @@ if __name__ == "__main__":
     }
 
     try:
-        # Create checkpoint manager for resume capability
         checkpoint_manager = CheckpointManager()
-
-        # Generate unique translation ID
         translation_id = f"cli_{uuid.uuid4().hex[:8]}"
 
-        # Call the new adapter-based translate_file
         asyncio.run(translate_file(
             input_filepath=args.input,
             output_filepath=args.output,
@@ -168,23 +239,19 @@ if __name__ == "__main__":
             prompt_options=prompt_options
         ))
 
-        # Log successful completion
         logger.info("Translation Completed Successfully", LogType.TRANSLATION_END, {
             'output_file': args.output
         })
 
-        # TTS Generation (if enabled)
         if args.tts:
             logger.info("Starting TTS Generation", LogType.INFO, {
+                'provider': args.tts_provider,
                 'voice': args.tts_voice or 'auto',
                 'rate': args.tts_rate,
                 'format': args.tts_format
             })
 
-            # Create TTS config from CLI arguments
             tts_config = TTSConfig.from_cli_args(args)
-
-            # Generate audio from translated file
             success, message, audio_path = asyncio.run(generate_tts_for_translation(
                 translated_filepath=args.output,
                 target_language=args.target_lang,
@@ -201,8 +268,12 @@ if __name__ == "__main__":
                     'details': message
                 })
 
-    except Exception as e:
-        logger.error(f"Translation failed: {str(e)}", LogType.ERROR_DETAIL, {
-            'details': str(e),
+    except Exception as exc:
+        logger.error(f"Translation failed: {str(exc)}", LogType.ERROR_DETAIL, {
+            'details': str(exc),
             'input_file': args.input
         })
+
+
+if __name__ == "__main__":
+    main()

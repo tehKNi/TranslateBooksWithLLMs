@@ -12,6 +12,7 @@ import { MessageLogger } from './message-logger.js';
 import { ApiKeyUtils } from '../utils/api-key-utils.js';
 import { TranslationTracker } from '../translation/translation-tracker.js';
 import { SettingsManager } from '../core/settings-manager.js';
+import { buildTTSRequestConfig } from '../tts/tts-request-config.js';
 
 /**
  * Set default language in select/input
@@ -688,12 +689,24 @@ export const FormManager = {
             },
             // Bilingual output (original + translation interleaved)
             bilingual_output: DomHelpers.getElement('bilingualMode')?.checked || false,
-            // TTS configuration
-            tts_enabled: ttsEnabled,
-            tts_voice: ttsEnabled ? (DomHelpers.getValue('ttsVoice') || '') : '',
-            tts_rate: ttsEnabled ? (DomHelpers.getValue('ttsRate') || '+0%') : '+0%',
-            tts_format: ttsEnabled ? (DomHelpers.getValue('ttsFormat') || 'opus') : 'opus',
-            tts_bitrate: ttsEnabled ? (DomHelpers.getValue('ttsBitrate') || '64k') : '64k'
+            ...buildTTSRequestConfig({
+                ttsEnabled,
+                ttsProvider: DomHelpers.getValue('ttsProvider') || 'edge-tts',
+                ttsVoice: DomHelpers.getValue('ttsVoice') || '',
+                ttsRate: DomHelpers.getValue('ttsRate') || '+0%',
+                ttsFormat: DomHelpers.getValue('ttsFormat') || 'opus',
+                ttsBitrate: DomHelpers.getValue('ttsBitrate') || '64k',
+                voicePromptPath: DomHelpers.getValue('voicePromptSelect') || '',
+                exaggeration: DomHelpers.getValue('ttsExaggeration') || '0.5',
+                cfgWeight: DomHelpers.getValue('ttsCfgWeight') || '0.5',
+                omnivoiceMode: DomHelpers.getValue('omnivoiceMode') || 'auto',
+                omnivoiceInstruct: DomHelpers.getValue('omnivoiceInstruct') || '',
+                omnivoiceRefAudioPath: DomHelpers.getValue('omnivoiceRefAudioPath') || DomHelpers.getValue('voicePromptSelect') || '',
+                omnivoiceRefText: DomHelpers.getValue('omnivoiceRefText') || '',
+                omnivoiceSpeed: DomHelpers.getValue('omnivoiceSpeed') || '1.0',
+                omnivoiceDuration: DomHelpers.getValue('omnivoiceDuration') || '',
+                omnivoiceNumStep: DomHelpers.getValue('omnivoiceNumStep') || '32'
+            })
         };
     },
 
@@ -724,6 +737,18 @@ export const FormManager = {
         const apiKeyValidation = ApiKeyUtils.validateForProvider(config.llm_provider, config.llm_api_endpoint);
         if (!apiKeyValidation.valid) {
             return apiKeyValidation;
+        }
+
+        if (config.tts_enabled && config.tts_provider === 'omnivoice') {
+            const omnivoiceMode = config.tts_omnivoice_mode || 'auto';
+
+            if (omnivoiceMode === 'voice_design' && !(config.tts_omnivoice_instruct || '').trim()) {
+                return { valid: false, message: 'OmniVoice voice design requires a voice prompt description.' };
+            }
+
+            if (omnivoiceMode === 'voice_cloning' && !(config.tts_omnivoice_ref_audio_path || '').trim()) {
+                return { valid: false, message: 'OmniVoice voice cloning requires a reference audio file.' };
+            }
         }
 
         return { valid: true, message: '' };

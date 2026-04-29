@@ -15,6 +15,7 @@ import { StatusManager } from '../utils/status-manager.js';
 import { ProgressManager } from './progress-manager.js';
 import { FileUpload, generateOutputFilename } from '../files/file-upload.js';
 import { TranslationTracker } from './translation-tracker.js';
+import { buildTTSRequestConfig } from '../tts/tts-request-config.js';
 
 /**
  * Validation helper for early failures
@@ -87,11 +88,24 @@ function getTranslationConfig(file) {
         file_type: file.fileType,
         prompt_options: promptOptions,
         bilingual_output: DomHelpers.getElement('bilingualMode')?.checked || false,
-        tts_enabled: ttsEnabled,
-        tts_voice: ttsEnabled ? (DomHelpers.getValue('ttsVoice') || '') : '',
-        tts_rate: ttsEnabled ? (DomHelpers.getValue('ttsRate') || '+0%') : '+0%',
-        tts_format: ttsEnabled ? (DomHelpers.getValue('ttsFormat') || 'opus') : 'opus',
-        tts_bitrate: ttsEnabled ? (DomHelpers.getValue('ttsBitrate') || '64k') : '64k'
+        ...buildTTSRequestConfig({
+            ttsEnabled,
+            ttsProvider: DomHelpers.getValue('ttsProvider') || 'edge-tts',
+            ttsVoice: DomHelpers.getValue('ttsVoice') || '',
+            ttsRate: DomHelpers.getValue('ttsRate') || '+0%',
+            ttsFormat: DomHelpers.getValue('ttsFormat') || 'opus',
+            ttsBitrate: DomHelpers.getValue('ttsBitrate') || '64k',
+            voicePromptPath: DomHelpers.getValue('voicePromptSelect') || '',
+            exaggeration: DomHelpers.getValue('ttsExaggeration') || '0.5',
+            cfgWeight: DomHelpers.getValue('ttsCfgWeight') || '0.5',
+            omnivoiceMode: DomHelpers.getValue('omnivoiceMode') || 'auto',
+            omnivoiceInstruct: DomHelpers.getValue('omnivoiceInstruct') || '',
+            omnivoiceRefAudioPath: DomHelpers.getValue('omnivoiceRefAudioPath') || DomHelpers.getValue('voicePromptSelect') || '',
+            omnivoiceRefText: DomHelpers.getValue('omnivoiceRefText') || '',
+            omnivoiceSpeed: DomHelpers.getValue('omnivoiceSpeed') || '1.0',
+            omnivoiceDuration: DomHelpers.getValue('omnivoiceDuration') || '',
+            omnivoiceNumStep: DomHelpers.getValue('omnivoiceNumStep') || '32'
+        })
     };
 
     if (file.fileType === 'epub' || file.fileType === 'srt') {

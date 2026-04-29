@@ -60,11 +60,24 @@ python translate.py -i input_file -o output_file
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--tts` | Generate audio from translated text using Edge-TTS | disabled |
+| `--tts` | Generate audio from translated text using the selected TTS provider | disabled |
+| `--tts-provider` | `edge-tts`, `chatterbox`, or `omnivoice` | edge-tts |
 | `--tts-voice` | TTS voice name | Auto-selected based on target language |
 | `--tts-rate` | Speech rate adjustment (e.g., `+10%`, `-20%`) | +0% |
-| `--tts-bitrate` | Audio bitrate (e.g., `64k`, `96k`) | 48k |
-| `--tts-format` | Audio output format: `opus` or `mp3` | opus |
+| `--tts-bitrate` | Audio bitrate (e.g., `64k`, `96k`) | 64k |
+| `--tts-format` | Audio output format: `opus`, `mp3`, or `wav` | opus |
+
+### OmniVoice TTS
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--omnivoice-mode` | `auto`, `voice_design`, or `voice_cloning` | auto |
+| `--omnivoice-instruct` | Voice design prompt for OmniVoice | empty |
+| `--omnivoice-ref-audio` | Reference audio path for voice cloning | empty |
+| `--omnivoice-ref-text` | Optional transcript for the reference audio | empty |
+| `--omnivoice-speed` | OmniVoice speed factor | 1.0 |
+| `--omnivoice-duration` | Optional fixed duration in seconds | unset |
+| `--omnivoice-num-step` | OmniVoice diffusion steps | 32 |
 
 ### Display
 
@@ -147,6 +160,20 @@ python translate.py -i book.txt -tl French --tts --tts-voice fr-FR-DeniseNeural 
 
 # Adjust speech rate and quality
 python translate.py -i book.txt -tl French --tts --tts-rate "+10%" --tts-bitrate 96k
+
+# OmniVoice auto voice
+python translate.py -i book.txt -tl French --tts --tts-provider omnivoice
+
+# OmniVoice voice design
+python translate.py -i book.txt -tl French --tts --tts-provider omnivoice \
+    --omnivoice-mode voice_design \
+    --omnivoice-instruct "female, low pitch, british accent"
+
+# OmniVoice voice cloning
+python translate.py -i book.txt -tl French --tts --tts-provider omnivoice \
+    --omnivoice-mode voice_cloning \
+    --omnivoice-ref-audio .\voice_prompt.wav \
+    --omnivoice-ref-text "Optional transcript of the prompt audio"
 ```
 
 ---
@@ -176,10 +203,20 @@ DEFAULT_TARGET_LANGUAGE=French
 
 # TTS
 TTS_ENABLED=false
+TTS_PROVIDER=edge-tts
 TTS_VOICE=               # Auto-selected if empty
 TTS_RATE=+0%
-TTS_BITRATE=48k
+TTS_BITRATE=64k
 TTS_OUTPUT_FORMAT=opus
+
+# OmniVoice (optional local runtime)
+TTS_OMNIVOICE_MODE=auto
+TTS_OMNIVOICE_REF_AUDIO_PATH=
+TTS_OMNIVOICE_REF_TEXT=
+TTS_OMNIVOICE_INSTRUCT=
+TTS_OMNIVOICE_SPEED=1.0
+TTS_OMNIVOICE_DURATION=
+TTS_OMNIVOICE_NUM_STEP=32
 ```
 
 ---

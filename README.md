@@ -129,7 +129,8 @@ python translate.py -i book.txt --provider openai \
 | `--provider` | ollama/openrouter/openai/gemini | ollama |
 | `--text-cleanup` | OCR/typographic cleanup | disabled |
 | `--refine` | Second pass for literary polish | disabled |
-| `--tts` | Generate audio (Edge-TTS) | disabled |
+| `--tts` | Generate audio with the selected TTS provider | disabled |
+| `--tts-provider` | edge-tts / chatterbox / omnivoice | edge-tts |
 
 See [docs/CLI.md](docs/CLI.md) for all options (TTS voices, rates, formats, etc.).
 
