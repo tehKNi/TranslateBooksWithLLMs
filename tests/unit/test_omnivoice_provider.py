@@ -63,7 +63,6 @@ def test_omnivoice_install_status_reports_missing_dependencies(monkeypatch):
     assert "torchaudio" in status["missing_dependencies"]
     assert "soundfile" in status["missing_dependencies"]
 
-
 def test_build_generate_kwargs_for_voice_design_mode():
     """Voice design mode should translate config into OmniVoice kwargs."""
     provider = omnivoice_tts.OmniVoiceProvider.__new__(omnivoice_tts.OmniVoiceProvider)
