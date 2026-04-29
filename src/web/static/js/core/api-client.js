@@ -288,7 +288,7 @@ export const ApiClient = {
         };
 
         // Include endpoint for OpenAI-compatible providers (llama.cpp, LM Studio, vLLM, etc.)
-        if (provider === 'openai' && options.apiEndpoint) {
+        if ((provider === 'openai' || provider === 'llama_cpp') && options.apiEndpoint) {
             body.api_endpoint = options.apiEndpoint;
         }
 
@@ -477,4 +477,3 @@ export const ApiClient = {
         });
     }
 };
-

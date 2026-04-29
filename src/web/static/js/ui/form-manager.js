@@ -656,7 +656,7 @@ export const FormManager = {
 
         // Get API endpoint based on provider
         let apiEndpoint;
-        if (provider === 'openai') {
+        if (provider === 'openai' || provider === 'llama_cpp') {
             apiEndpoint = DomHelpers.getValue('openaiEndpoint');
         } else {
             apiEndpoint = DomHelpers.getValue('apiEndpoint');

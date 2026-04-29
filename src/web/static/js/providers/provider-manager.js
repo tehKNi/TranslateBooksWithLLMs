@@ -21,6 +21,7 @@ import { SearchableSelectFactory } from '../ui/searchable-select.js';
  */
 const PROVIDER_LOGOS = {
     ollama: '/static/img/providers/ollama.png',
+    llama_cpp: '/static/img/providers/openai.png',
     poe: '/static/img/providers/poe.png',
     deepseek: '/static/img/providers/deepseek.png',
     mistral: '/static/img/providers/mistral.png',
@@ -35,6 +36,7 @@ const PROVIDER_LOGOS = {
  */
 const PROVIDER_META = {
     ollama: { name: 'Ollama', description: 'Local' },
+    llama_cpp: { name: 'llama.cpp', description: 'Local server' },
     poe: { name: 'Poe', description: 'Multi-Provider' },
     deepseek: { name: 'DeepSeek', description: 'Cloud API' },
     mistral: { name: 'Mistral', description: 'Cloud API' },
@@ -53,6 +55,15 @@ const OPENAI_MODELS = [
     { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
     { value: 'gpt-4', label: 'GPT-4' },
     { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
+];
+
+/**
+ * Fallback llama.cpp models list for local servers that do not expose /models.
+ */
+const LLAMA_CPP_FALLBACK_MODELS = [
+    { value: 'qwen2.5-7b-instruct', label: 'Qwen 2.5 7B Instruct' },
+    { value: 'llama-3.2-3b-instruct', label: 'Llama 3.2 3B Instruct' },
+    { value: 'mistral-7b-instruct', label: 'Mistral 7B Instruct' }
 ];
 
 /**
@@ -374,8 +385,8 @@ export const ProviderManager = {
                 clearTimeout(endpointTimeout);
                 endpointTimeout = setTimeout(() => {
                     const currentProvider = DomHelpers.getValue('llmProvider');
-                    if (currentProvider === 'openai') {
-                        this.loadOpenAIModels();
+                    if (currentProvider === 'openai' || currentProvider === 'llama_cpp') {
+                        this.loadOpenAIModels(currentProvider);
                     }
                 }, 500); // Wait 500ms after user stops typing
             });
@@ -464,6 +475,20 @@ export const ProviderManager = {
         }
     },
 
+    applyCompatibleEndpointDefault(provider) {
+        const openaiEndpoint = DomHelpers.getElement('openaiEndpoint');
+        if (!openaiEndpoint || SettingsManager.isEndpointCustomized('openai')) {
+            return;
+        }
+
+        const serverConfig = StateManager.getState('ui.defaultConfig') || {};
+        const defaultEndpoint = provider === 'llama_cpp'
+            ? (serverConfig.llama_cpp_api_endpoint || 'http://localhost:8080/v1/chat/completions')
+            : (serverConfig.openai_api_endpoint || 'https://api.openai.com/v1/chat/completions');
+
+        DomHelpers.setValue('openaiEndpoint', defaultEndpoint);
+    },
+
     /**
      * Initialize searchable select for model dropdown
      */
@@ -539,17 +564,18 @@ export const ProviderManager = {
             if (poeSettings) poeSettings.style.display = 'none';
             if (nimSettings) nimSettings.style.display = 'none';
             if (loadModels) this.loadGeminiModels();
-        } else if (provider === 'openai') {
+        } else if (provider === 'openai' || provider === 'llama_cpp') {
             DomHelpers.hide('ollamaSettings');
             if (geminiSettings) geminiSettings.style.display = 'none';
-            if (openaiApiKeyGroup) openaiApiKeyGroup.style.display = 'block';
+            if (openaiApiKeyGroup) openaiApiKeyGroup.style.display = provider === 'openai' ? 'block' : 'none';
             if (openaiEndpointRow) openaiEndpointRow.style.display = 'block';
             if (openrouterSettings) openrouterSettings.style.display = 'none';
             if (mistralSettings) mistralSettings.style.display = 'none';
             if (deepseekSettings) deepseekSettings.style.display = 'none';
             if (poeSettings) poeSettings.style.display = 'none';
             if (nimSettings) nimSettings.style.display = 'none';
-            if (loadModels) this.loadOpenAIModels();
+            this.applyCompatibleEndpointDefault(provider);
+            if (loadModels) this.loadOpenAIModels(provider);
         } else if (provider === 'openrouter') {
             DomHelpers.hide('ollamaSettings');
             if (geminiSettings) geminiSettings.style.display = 'none';
@@ -609,8 +635,8 @@ export const ProviderManager = {
             this.loadPoeModels();
         } else if (provider === 'gemini') {
             this.loadGeminiModels();
-        } else if (provider === 'openai') {
-            this.loadOpenAIModels();
+        } else if (provider === 'openai' || provider === 'llama_cpp') {
+            this.loadOpenAIModels(provider);
         } else if (provider === 'openrouter') {
             this.loadOpenRouterModels();
         } else if (provider === 'mistral') {
@@ -807,18 +833,21 @@ export const ProviderManager = {
      * Always tries to fetch models dynamically from any OpenAI-compatible endpoint.
      * Falls back to static list if dynamic fetch fails.
      */
-    async loadOpenAIModels() {
+    async loadOpenAIModels(providerOverride = null) {
         const modelSelect = DomHelpers.getElement('model');
         if (!modelSelect) return;
 
-        const apiEndpoint = DomHelpers.getValue('openaiEndpoint') || 'https://api.openai.com/v1/chat/completions';
+        const provider = providerOverride || DomHelpers.getValue('llmProvider') || 'openai';
+        const isLlamaCpp = provider === 'llama_cpp';
+        const apiEndpoint = DomHelpers.getValue('openaiEndpoint')
+            || (isLlamaCpp ? 'http://localhost:8080/v1/chat/completions' : 'https://api.openai.com/v1/chat/completions');
 
         modelSelect.innerHTML = '<option value="">Loading models...</option>';
         StatusManager.setChecking();
 
         try {
             const apiKey = ApiKeyUtils.getValue('openaiApiKey');
-            const data = await ApiClient.getModels('openai', { apiKey, apiEndpoint });
+            const data = await ApiClient.getModels(provider, { apiKey, apiEndpoint });
 
             if (data.models && data.models.length > 0) {
                 MessageLogger.showMessage('', '');
@@ -830,7 +859,7 @@ export const ProviderManager = {
                 }));
 
                 const envModelApplied = populateModelSelect(formattedModels, data.default, 'openai');
-                MessageLogger.addLog(`✅ ${data.count} model(s) loaded from OpenAI-compatible endpoint`);
+                MessageLogger.addLog(`✅ ${data.count} model(s) loaded from ${isLlamaCpp ? 'llama.cpp' : 'OpenAI-compatible'} endpoint`);
 
                 if (envModelApplied && data.default) {
                     SettingsManager.markEnvModelApplied();
@@ -840,28 +869,30 @@ export const ProviderManager = {
                 ModelDetector.checkAndShowRecommendation();
 
                 StateManager.setState('models.availableModels', formattedModels.map(m => m.value));
-                StatusManager.setConnected('openai', data.count);
+                StatusManager.setConnected(isLlamaCpp ? 'llama.cpp' : 'openai', data.count);
                 return;
             } else {
                 // No models returned from endpoint
                 const errorMsg = data.error || 'No models available from endpoint';
-                MessageLogger.showMessage(`⚠️ ${errorMsg}. Using fallback OpenAI models.`, 'warning');
+                MessageLogger.showMessage(`⚠️ ${errorMsg}. Using fallback ${isLlamaCpp ? 'llama.cpp' : 'OpenAI'} models.`, 'warning');
                 MessageLogger.addLog(`⚠️ ${errorMsg}. Using fallback list.`);
             }
         } catch (error) {
-            MessageLogger.showMessage(`⚠️ Could not connect to endpoint. Using fallback OpenAI models.`, 'warning');
+            MessageLogger.showMessage(`⚠️ Could not connect to endpoint. Using fallback ${isLlamaCpp ? 'llama.cpp' : 'OpenAI'} models.`, 'warning');
             MessageLogger.addLog(`⚠️ Connection error: ${error.message}. Using fallback list.`);
         }
 
-        // Fallback: use static OpenAI models list
-        populateModelSelect(OPENAI_MODELS, null, 'openai');
-        MessageLogger.addLog(`✅ OpenAI models loaded (common models)`);
+        const fallbackModels = isLlamaCpp ? LLAMA_CPP_FALLBACK_MODELS : OPENAI_MODELS;
+        const fallbackDefault = isLlamaCpp ? 'qwen2.5-7b-instruct' : null;
+
+        populateModelSelect(fallbackModels, fallbackDefault, 'openai');
+        MessageLogger.addLog(`✅ ${isLlamaCpp ? 'llama.cpp' : 'OpenAI'} fallback models loaded`);
 
         SettingsManager.applyPendingModelSelection();
         ModelDetector.checkAndShowRecommendation();
 
-        StateManager.setState('models.availableModels', OPENAI_MODELS.map(m => m.value));
-        StatusManager.setConnected('openai', OPENAI_MODELS.length);
+        StateManager.setState('models.availableModels', fallbackModels.map(m => m.value));
+        StatusManager.setConnected(isLlamaCpp ? 'llama.cpp' : 'openai', fallbackModels.length);
     },
 
     /**

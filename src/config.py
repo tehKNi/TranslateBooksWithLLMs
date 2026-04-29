@@ -90,9 +90,12 @@ if _debug_mode:
 OLLAMA_API_ENDPOINT = os.getenv('OLLAMA_API_ENDPOINT', 'http://localhost:11434/api/generate')
 # OpenAI-compatible endpoint configuration (for OpenAI, LM Studio, etc.)
 OPENAI_API_ENDPOINT = os.getenv('OPENAI_API_ENDPOINT', 'https://api.openai.com/v1/chat/completions')
+# llama.cpp endpoint configuration (llama-server / OpenAI-compatible local server)
+LLAMA_CPP_API_ENDPOINT = os.getenv('LLAMA_CPP_API_ENDPOINT', 'http://localhost:8080/v1/chat/completions')
 # Legacy API_ENDPOINT for backward compatibility (defaults to Ollama endpoint)
 API_ENDPOINT = os.getenv('API_ENDPOINT', OLLAMA_API_ENDPOINT)
 DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'qwen3:14b')
+LLAMA_CPP_MODEL = os.getenv('LLAMA_CPP_MODEL', DEFAULT_MODEL)
 PORT = int(os.getenv('PORT', '5000'))
 REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', '900'))
 OLLAMA_NUM_CTX = int(os.getenv('OLLAMA_NUM_CTX', '4096'))
@@ -181,7 +184,7 @@ MIN_CHUNK_SIZE_TOKENS = 50
 """Taille minimale d'un chunk pour éviter la sur-fragmentation"""
 
 # LLM Provider configuration
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama', 'gemini', 'openai', 'openrouter', 'mistral', 'deepseek', or 'poe'
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama', 'llama_cpp', 'gemini', 'openai', 'openrouter', 'mistral', 'deepseek', 'poe', or 'nim'
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')

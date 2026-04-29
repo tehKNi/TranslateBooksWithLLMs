@@ -18,6 +18,8 @@ from src.config import (  # noqa: E402
     DEFAULT_TARGET_LANGUAGE,
     DEEPSEEK_API_KEY,
     GEMINI_API_KEY,
+    LLAMA_CPP_API_ENDPOINT,
+    LLAMA_CPP_MODEL,
     LLM_PROVIDER,
     MISTRAL_API_KEY,
     NIM_API_KEY,
@@ -54,8 +56,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-sl", "--source_lang", default=DEFAULT_SOURCE_LANGUAGE, help=f"Source language (default: {DEFAULT_SOURCE_LANGUAGE}).")
     parser.add_argument("-tl", "--target_lang", default=DEFAULT_TARGET_LANGUAGE, help=f"Target language (default: {DEFAULT_TARGET_LANGUAGE}).")
     parser.add_argument("-m", "--model", default=DEFAULT_MODEL, help=f"LLM model (default: {DEFAULT_MODEL}).")
-    parser.add_argument("--api_endpoint", default=API_ENDPOINT, help=f"API endpoint for Ollama or OpenAI-compatible servers (llama.cpp, LM Studio, vLLM, etc.) (default: {API_ENDPOINT}).")
-    parser.add_argument("--provider", default=LLM_PROVIDER, choices=["ollama", "gemini", "openai", "openrouter", "mistral", "deepseek", "poe", "nim"], help=f"LLM provider (default: {LLM_PROVIDER}). Use 'openai' for any OpenAI-compatible server.")
+    parser.add_argument("--api_endpoint", default=API_ENDPOINT, help=f"API endpoint for Ollama, llama.cpp, or OpenAI-compatible servers (default: {API_ENDPOINT}).")
+    parser.add_argument("--provider", default=LLM_PROVIDER, choices=["ollama", "llama_cpp", "gemini", "openai", "openrouter", "mistral", "deepseek", "poe", "nim"], help=f"LLM provider (default: {LLM_PROVIDER}). Use 'llama_cpp' for llama-server or 'openai' for generic OpenAI-compatible endpoints.")
     parser.add_argument("--gemini_api_key", default=GEMINI_API_KEY, help="Google Gemini API key (required if using gemini provider).")
     parser.add_argument("--openai_api_key", default=OPENAI_API_KEY, help="OpenAI API key (required for OpenAI cloud, not needed for local servers).")
     parser.add_argument("--openrouter_api_key", default=OPENROUTER_API_KEY, help="OpenRouter API key (required if using openrouter provider).")
@@ -150,6 +152,14 @@ def _apply_default_model(args) -> None:
         args.model = OPENROUTER_MODEL
     elif args.provider == "gemini" and GEMINI_MODEL:
         args.model = GEMINI_MODEL
+    elif args.provider == "llama_cpp" and LLAMA_CPP_MODEL:
+        args.model = LLAMA_CPP_MODEL
+
+
+def _apply_default_api_endpoint(args) -> None:
+    """Auto-select provider-specific default endpoint when needed."""
+    if args.provider == "llama_cpp" and args.api_endpoint == API_ENDPOINT:
+        args.api_endpoint = LLAMA_CPP_API_ENDPOINT
 
 
 def _prepare_output_path(args) -> None:
@@ -181,6 +191,7 @@ def main(argv=None) -> None:
     args = parser.parse_args(argv)
 
     _apply_default_model(args)
+    _apply_default_api_endpoint(args)
     _prepare_output_path(args)
     validate_cli_args(parser, args)
 

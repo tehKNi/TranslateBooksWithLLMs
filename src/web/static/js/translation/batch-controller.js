@@ -72,7 +72,7 @@ function getTranslationConfig(file) {
         source_language: sourceLanguageVal,
         target_language: targetLanguageVal,
         model: currentModel,
-        llm_api_endpoint: provider === 'openai' ?
+        llm_api_endpoint: (provider === 'openai' || provider === 'llama_cpp') ?
                          DomHelpers.getValue('openaiEndpoint') :
                          DomHelpers.getValue('apiEndpoint'),
         llm_provider: provider,
@@ -187,10 +187,12 @@ export const BatchController = {
         }
 
         const provider = DomHelpers.getValue('llmProvider');
-        if (provider === 'ollama') {
-            const ollamaApiEndpoint = DomHelpers.getValue('apiEndpoint').trim();
-            if (!ollamaApiEndpoint) {
-                return earlyValidationFail('Ollama API Endpoint cannot be empty for the batch.');
+        if (provider === 'ollama' || provider === 'openai' || provider === 'llama_cpp') {
+            const endpointValue = (provider === 'ollama'
+                ? DomHelpers.getValue('apiEndpoint')
+                : DomHelpers.getValue('openaiEndpoint')).trim();
+            if (!endpointValue) {
+                return earlyValidationFail('API Endpoint cannot be empty for the batch.');
             }
         }
 
@@ -283,7 +285,7 @@ export const BatchController = {
         updateFileStatusInList(fileToTranslate.name, 'Preparing...');
 
         const provider = DomHelpers.getValue('llmProvider');
-        const endpoint = provider === 'openai' ? DomHelpers.getValue('openaiEndpoint') : '';
+        const endpoint = (provider === 'openai' || provider === 'llama_cpp') ? DomHelpers.getValue('openaiEndpoint') : '';
         const apiKeyValidation = ApiKeyUtils.validateForProvider(provider, endpoint);
 
         if (!apiKeyValidation.valid) {

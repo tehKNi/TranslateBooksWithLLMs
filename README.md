@@ -27,6 +27,7 @@ Providers:
 </p>
 
 - [**Ollama**](https://ollama.com/download) (local / cloud)
+- **llama.cpp** (`llama-server`) (local)
 - [**Poe**](https://poe.com/api_key) ⭐ Recommended - Easy setup, multiple AI models
 - [**OpenRouter**](https://openrouter.ai/keys) (200+ models)
 - [**OpenAI**](https://platform.openai.com/api-keys) (**compatible like LM Studio**)
@@ -45,7 +46,7 @@ Providers:
 [![Download Windows](https://img.shields.io/badge/Download-Windows-blue?style=for-the-badge&logo=windows)](https://github.com/hydropix/TranslateBooksWithLLMs/releases/latest/download/TranslateBook-Windows.zip) [![Download macOS Intel](https://img.shields.io/badge/Download-macOS%20Intel-black?style=for-the-badge&logo=apple)](https://github.com/hydropix/TranslateBooksWithLLMs/releases/latest/download/TranslateBook-macOS-Intel.zip) [![Download macOS Apple Silicon](https://img.shields.io/badge/Download-macOS%20M1%2FM2%2FM3%2FM4-black?style=for-the-badge&logo=apple)](https://github.com/hydropix/TranslateBooksWithLLMs/releases/latest/download/TranslateBook-macOS-AppleSilicon.zip)
 
 1. Download and extract the archive for your platform
-2. Install [Ollama](https://ollama.com/) (for local AI models)
+2. Install [Ollama](https://ollama.com/) **or** start a local `llama-server`
 3. Run `TranslateBook.exe` (Windows) or `./TranslateBook` (macOS)
 4. Open http://localhost:5000 in your browser
 
@@ -57,7 +58,7 @@ Providers:
 
 ### For the Bearded Ones - Install from Source
 
-**Prerequisites:** [Python 3.8+](https://www.python.org/downloads/), [Ollama](https://ollama.com/), [Git](https://git-scm.com/)
+**Prerequisites:** [Python 3.8+](https://www.python.org/downloads/), a local LLM server ([Ollama](https://ollama.com/) or `llama.cpp`), [Git](https://git-scm.com/)
 
 ```bash
 git clone https://github.com/hydropix/TranslateBooksWithLLMs.git
@@ -80,6 +81,7 @@ The web interface opens at **http://localhost:5000**
 | Provider | Type | Setup |
 |----------|------|-------|
 | **Ollama** | Local | [ollama.com](https://ollama.com/) |
+| **llama.cpp** | Local | `llama-server` on port 8080 |
 | **Poe** ⭐ | Cloud (Recommended) | [poe.com/api_key](https://poe.com/api_key) |
 | **OpenAI-Compatible** | Local | llama.cpp, LM Studio, vLLM, LocalAI... |
 | **OpenRouter** | Cloud (200+ models) | [openrouter.ai/keys](https://openrouter.ai/keys) |
@@ -88,7 +90,7 @@ The web interface opens at **http://localhost:5000**
 | **DeepSeek** | Cloud | [platform.deepseek.com](https://platform.deepseek.com/api_keys) |
 | **Gemini** | Cloud | [Google AI Studio](https://makersuite.google.com/app/apikey) |
 
-> **OpenAI-Compatible servers:** Use `--provider openai` with your server's endpoint (e.g., llama.cpp: `http://localhost:8080/v1/chat/completions`, LM Studio: `http://localhost:1234/v1/chat/completions`)
+> **Local server shortcuts:** use `--provider llama_cpp` for `llama-server`, or `--provider openai` for any other OpenAI-compatible endpoint (LM Studio, vLLM, LocalAI, etc.).
 
 See [docs/PROVIDERS.md](docs/PROVIDERS.md) for detailed setup instructions.
 
@@ -112,6 +114,10 @@ python translate.py -i book.txt --provider openai \
 python translate.py -i book.txt --provider gemini \
     --gemini_api_key YOUR_KEY -m gemini-2.0-flash -tl French
 
+# With llama.cpp (llama-server)
+python translate.py -i book.txt --provider llama_cpp \
+    --api_endpoint http://localhost:8080/v1/chat/completions -m your-model -tl French
+
 # With local OpenAI-compatible server (llama.cpp, LM Studio, vLLM, etc.)
 python translate.py -i book.txt --provider openai \
     --api_endpoint http://localhost:8080/v1/chat/completions -m your-model -tl French
@@ -126,7 +132,7 @@ python translate.py -i book.txt --provider openai \
 | `-sl, --source_lang` | Source language | English |
 | `-tl, --target_lang` | Target language | Chinese |
 | `-m, --model` | Model name | mistral-small:24b |
-| `--provider` | ollama/openrouter/openai/gemini | ollama |
+| `--provider` | ollama/llama_cpp/openrouter/openai/gemini | ollama |
 | `--text-cleanup` | OCR/typographic cleanup | disabled |
 | `--refine` | Second pass for literary polish | disabled |
 | `--tts` | Generate audio with the selected TTS provider | disabled |
@@ -147,6 +153,10 @@ LLM_PROVIDER=ollama
 # Ollama
 API_ENDPOINT=http://localhost:11434/api/generate
 DEFAULT_MODEL=mistral-small:24b
+
+# llama.cpp
+LLAMA_CPP_API_ENDPOINT=http://localhost:8080/v1/chat/completions
+LLAMA_CPP_MODEL=qwen2.5-7b-instruct
 
 # API Keys (if using cloud providers)
 OPENROUTER_API_KEY=sk-or-v1-...

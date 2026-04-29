@@ -30,6 +30,8 @@ from src.config import (
     API_ENDPOINT as DEFAULT_OLLAMA_API_ENDPOINT,
     OLLAMA_API_ENDPOINT,
     OPENAI_API_ENDPOINT,
+    LLAMA_CPP_API_ENDPOINT,
+    LLAMA_CPP_MODEL,
     DEFAULT_MODEL,
     REQUEST_TIMEOUT,
     OLLAMA_NUM_CTX,
@@ -187,6 +189,12 @@ def create_config_blueprint(server_session_id=None):
             else:
                 api_endpoint = request.args.get('api_endpoint', 'https://api.openai.com/v1/chat/completions')
             return _get_openai_models(api_key, api_endpoint)
+        elif provider == 'llama_cpp':
+            if request.method == 'POST':
+                api_endpoint = data.get('api_endpoint', LLAMA_CPP_API_ENDPOINT)
+            else:
+                api_endpoint = request.args.get('api_endpoint', LLAMA_CPP_API_ENDPOINT)
+            return _get_openai_models(api_key, api_endpoint, default_model=LLAMA_CPP_MODEL)
         else:
             return _get_ollama_models()
 
@@ -205,7 +213,9 @@ def create_config_blueprint(server_session_id=None):
             "api_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
             "ollama_api_endpoint": OLLAMA_API_ENDPOINT,
             "openai_api_endpoint": OPENAI_API_ENDPOINT,
+            "llama_cpp_api_endpoint": LLAMA_CPP_API_ENDPOINT,
             "default_model": DEFAULT_MODEL,
+            "llama_cpp_default_model": LLAMA_CPP_MODEL,
             "default_source_language": DEFAULT_SOURCE_LANGUAGE,
             "default_target_language": DEFAULT_TARGET_LANGUAGE,
             "timeout": REQUEST_TIMEOUT,
@@ -587,13 +597,14 @@ def create_config_blueprint(server_session_id=None):
                 "error": f"Error connecting to NVIDIA NIM API: {str(e)}"
             })
 
-    def _get_openai_models(provided_api_key=None, api_endpoint=None):
+    def _get_openai_models(provided_api_key=None, api_endpoint=None, default_model=None):
         """Get available models from OpenAI-compatible API
 
         Always tries to fetch models dynamically from any OpenAI-compatible endpoint.
         Falls back to static list if dynamic fetch fails.
         """
         api_key = _resolve_api_key(provided_api_key, 'OPENAI_API_KEY', OPENAI_API_KEY)
+        default_model = default_model or 'gpt-4o'
 
         # Determine base URL from endpoint
         if api_endpoint:
@@ -642,7 +653,8 @@ def create_config_blueprint(server_session_id=None):
 
                     if models:
                         model_ids = [m['id'] for m in models]
-                        default_model = model_ids[0] if model_ids else 'gpt-4o'
+                        if default_model not in model_ids and model_ids:
+                            default_model = model_ids[0]
 
                         return jsonify({
                             "models": models,
@@ -663,7 +675,7 @@ def create_config_blueprint(server_session_id=None):
         return jsonify({
             "models": openai_static_models,
             "model_names": model_ids,
-            "default": "gpt-4o",
+            "default": default_model,
             "status": "openai_static",
             "count": len(openai_static_models)
         })
@@ -954,11 +966,13 @@ def create_config_blueprint(server_session_id=None):
             'POE_MODEL',
             'NIM_API_KEY',
             'NIM_MODEL',
+            'LLAMA_CPP_MODEL',
             'DEFAULT_MODEL',
             'LLM_PROVIDER',
             'API_ENDPOINT',
             'OLLAMA_API_ENDPOINT',
             'OPENAI_API_ENDPOINT',
+            'LLAMA_CPP_API_ENDPOINT',
             'OUTPUT_FILENAME_PATTERN'
         }
 
@@ -1012,7 +1026,9 @@ def create_config_blueprint(server_session_id=None):
             "llm_provider": os.getenv('LLM_PROVIDER', 'ollama'),
             "api_endpoint": DEFAULT_OLLAMA_API_ENDPOINT or "",
             "ollama_api_endpoint": OLLAMA_API_ENDPOINT or "",
-            "openai_api_endpoint": OPENAI_API_ENDPOINT or ""
+            "openai_api_endpoint": OPENAI_API_ENDPOINT or "",
+            "llama_cpp_api_endpoint": LLAMA_CPP_API_ENDPOINT or "",
+            "llama_cpp_default_model": LLAMA_CPP_MODEL or ""
         })
 
     return bp

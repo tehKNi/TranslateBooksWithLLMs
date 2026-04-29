@@ -10,6 +10,7 @@ from typing import Optional
 
 from src.config import (
     API_ENDPOINT, DEFAULT_MODEL, OLLAMA_NUM_CTX,
+    LLAMA_CPP_API_ENDPOINT, LLAMA_CPP_MODEL,
     OPENROUTER_API_KEY, OPENROUTER_MODEL,
     MISTRAL_API_KEY, MISTRAL_MODEL, MISTRAL_API_ENDPOINT,
     DEEPSEEK_API_KEY, DEEPSEEK_MODEL, DEEPSEEK_API_ENDPOINT,
@@ -74,10 +75,17 @@ def create_llm_provider(provider_type: str = "ollama", **kwargs) -> LLMProvider:
             context_window=kwargs.get("context_window") or OLLAMA_NUM_CTX,
             log_callback=kwargs.get("log_callback")
         )
-    elif provider_type.lower() == "openai":
+    elif provider_type.lower() in {"openai", "llama_cpp", "llama.cpp"}:
+        default_endpoint = kwargs.get("api_endpoint") or kwargs.get("endpoint")
+        default_model = kwargs.get("model", DEFAULT_MODEL)
+
+        if provider_type.lower() in {"llama_cpp", "llama.cpp"}:
+            default_endpoint = default_endpoint or LLAMA_CPP_API_ENDPOINT
+            default_model = kwargs.get("model", LLAMA_CPP_MODEL)
+
         return OpenAICompatibleProvider(
-            api_endpoint=kwargs.get("api_endpoint") or kwargs.get("endpoint"),
-            model=kwargs.get("model", DEFAULT_MODEL),
+            api_endpoint=default_endpoint,
+            model=default_model,
             api_key=kwargs.get("api_key") or kwargs.get("openai_api_key"),
             context_window=kwargs.get("context_window") or OLLAMA_NUM_CTX,
             log_callback=kwargs.get("log_callback")

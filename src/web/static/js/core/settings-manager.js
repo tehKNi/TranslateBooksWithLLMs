@@ -505,6 +505,8 @@ export const SettingsManager = {
             } else if (provider === 'openai') {
                 const key = DomHelpers.getValue('openaiApiKey');
                 if (key) envSettings['OPENAI_API_KEY'] = key;
+            } else if (provider === 'llama_cpp') {
+                // No API key required for local llama.cpp servers
             } else if (provider === 'openrouter') {
                 const key = DomHelpers.getValue('openrouterApiKey');
                 if (key) envSettings['OPENROUTER_API_KEY'] = key;
@@ -529,7 +531,11 @@ export const SettingsManager = {
                 envSettings['OLLAMA_API_ENDPOINT'] = ollamaEndpoint;
             }
             if (openaiEndpoint) {
-                envSettings['OPENAI_API_ENDPOINT'] = openaiEndpoint;
+                if (provider === 'llama_cpp') {
+                    envSettings['LLAMA_CPP_API_ENDPOINT'] = openaiEndpoint;
+                } else {
+                    envSettings['OPENAI_API_ENDPOINT'] = openaiEndpoint;
+                }
             }
 
             // Save output filename pattern (naming convention)
@@ -555,6 +561,8 @@ export const SettingsManager = {
                     envSettings['POE_MODEL'] = model;
                 } else if (provider === 'nim') {
                     envSettings['NIM_MODEL'] = model;
+                } else if (provider === 'llama_cpp') {
+                    envSettings['LLAMA_CPP_MODEL'] = model;
                 } else {
                     // Ollama and OpenAI use DEFAULT_MODEL
                     envSettings['DEFAULT_MODEL'] = model;
