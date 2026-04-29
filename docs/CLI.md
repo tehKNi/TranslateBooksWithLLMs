@@ -38,7 +38,7 @@ python translate.py -i input_file -o output_file
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-m, --model` | Model name | mistral-small:24b |
-| `--provider` | ollama / openrouter / openai / gemini | ollama |
+| `--provider` | ollama / llama_cpp / openrouter / openai / gemini | ollama |
 | `--api_endpoint` | API URL | http://localhost:11434/api/generate |
 
 ### API Keys
@@ -123,13 +123,19 @@ python translate.py -i book.txt -o book_fr.txt \
     --openai_api_key sk-xxx \
     -m gpt-4o
 
+# llama.cpp (llama-server)
+python translate.py -i book.txt -o book_fr.txt \
+    --provider llama_cpp \
+    --api_endpoint http://localhost:8080/v1/chat/completions \
+    -m qwen2.5-7b-instruct
+
 # Gemini
 python translate.py -i book.txt -o book_fr.txt \
     --provider gemini \
     --gemini_api_key xxx \
     -m gemini-2.0-flash
 
-# OpenAI-compatible server (llama.cpp, LM Studio, vLLM, etc.)
+# Generic OpenAI-compatible server (LM Studio, vLLM, LocalAI, etc.)
 python translate.py -i book.txt -o book_fr.txt \
     --provider openai \
     --api_endpoint http://localhost:8080/v1/chat/completions \
@@ -187,6 +193,8 @@ Instead of passing options every time, use a `.env` file:
 LLM_PROVIDER=ollama
 DEFAULT_MODEL=qwen3:14b
 API_ENDPOINT=http://localhost:11434/api/generate
+LLAMA_CPP_API_ENDPOINT=http://localhost:8080/v1/chat/completions
+LLAMA_CPP_MODEL=qwen2.5-7b-instruct
 
 # API Keys
 OPENROUTER_API_KEY=sk-or-v1-...

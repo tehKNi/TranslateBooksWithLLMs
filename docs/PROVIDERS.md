@@ -47,7 +47,7 @@ TBL supports any server that implements the OpenAI API format. This includes:
 
 1. Start your OpenAI-compatible server
 2. In TBL:
-   - Select "OpenAI-Compatible" provider
+   - Select `llama.cpp` for `llama-server`, or "OpenAI-Compatible" for other compatible servers
    - Set endpoint to your server URL (see table below)
    - Leave API key empty (local servers don't require it)
 
@@ -63,7 +63,7 @@ TBL supports any server that implements the OpenAI API format. This includes:
 ```bash
 # llama.cpp (llama-server)
 python translate.py -i book.txt -o book_fr.txt \
-    --provider openai \
+    --provider llama_cpp \
     --api_endpoint http://localhost:8080/v1/chat/completions \
     -m your-model-name
 
@@ -101,7 +101,7 @@ Browse models and pricing: [openrouter.ai/models](https://openrouter.ai/models)
 
 ## OpenAI Cloud
 
-Official OpenAI API (GPT models). Uses the same "OpenAI-Compatible" provider in TBL.
+Official OpenAI API (GPT models). Uses the `openai` provider in TBL.
 
 ### Models
 
@@ -114,7 +114,7 @@ Official OpenAI API (GPT models). Uses the same "OpenAI-Compatible" provider in 
 
 1. Get API key at [platform.openai.com](https://platform.openai.com/api-keys)
 2. In TBL:
-   - Select "OpenAI-Compatible" provider
+   - Select "OpenAI-Compatible"
    - Keep endpoint as `https://api.openai.com/v1/chat/completions`
    - Enter your API key
 
@@ -164,6 +164,8 @@ Store settings in `.env` file:
 ```bash
 # Provider
 LLM_PROVIDER=ollama
+LLAMA_CPP_API_ENDPOINT=http://localhost:8080/v1/chat/completions
+LLAMA_CPP_MODEL=qwen2.5-7b-instruct
 
 # API Keys
 OPENROUTER_API_KEY=sk-or-v1-...

@@ -155,7 +155,7 @@ export const Validators = {
         }
 
         // Validate API endpoint for Ollama and OpenAI
-        if (formValues.provider === 'ollama' || formValues.provider === 'openai') {
+        if (formValues.provider === 'ollama' || formValues.provider === 'openai' || formValues.provider === 'llama_cpp') {
             if (!this.validateApiEndpoint(formValues.apiEndpoint)) {
                 return false;
             }
