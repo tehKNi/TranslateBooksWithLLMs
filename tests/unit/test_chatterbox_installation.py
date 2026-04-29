@@ -14,7 +14,7 @@ class TestChatterboxInstallStatus:
         monkeypatch.setattr(
             chatterbox_tts.Path,
             "exists",
-            lambda self: str(self) == "/.dockerenv",
+            lambda self: self.name == ".dockerenv",
         )
 
         status = chatterbox_tts.get_chatterbox_install_status()
@@ -22,5 +22,5 @@ class TestChatterboxInstallStatus:
         assert status["available"] is False
         assert status["is_container"] is True
         assert status["install_method"] == "docker-build"
-        assert "INSTALL_CHATTERBOX=1" in status["install_command"]
-        assert "docker compose build" in status["install_command"]
+        assert status["install_command"] == "INSTALL_CHATTERBOX=1 docker compose up -d --build"
+        assert "docker compose build --build-arg" not in status["install_command"]
